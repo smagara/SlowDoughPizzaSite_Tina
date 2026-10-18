@@ -53,7 +53,7 @@ jobs:
 
       # configure-pages is not needed: Pages is already enabled with "Source: GitHub Actions" and the
       # site computes its own base path (BASE_PATH above), so one fewer action to keep current.
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
