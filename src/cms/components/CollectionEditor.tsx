@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Collection, TinaField } from 'tinacms';
-import { FilePlus2, RotateCcw, Trash2 } from 'lucide-react';
+import { EyeOff, FilePlus2, RotateCcw, Trash2 } from 'lucide-react';
 import { collectionLabel, docTitle } from '../diff';
 import type { EditorStore } from '../useEditorStore';
 import { slugify, validateSlug } from '../validation';
@@ -21,7 +21,7 @@ const descriptionFor = (c: Collection): string => {
     case 'menu':
       return 'Categories, dishes, prices and dietary tags shown in the "Our Daily Menu" section.';
     case 'post':
-      return 'Essays in "The Baker\u2019s Journal". Mark a post as Draft to keep it hidden from visitors.';
+      return 'Essays in "The Baker\u2019s Journal". New posts are visible once saved/approved; tick "Draft" on a post to hide it.';
     case 'hours':
       return 'The weekly schedule shown in "Store Hours & Location".';
     default:
@@ -106,6 +106,7 @@ export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
 
   if (current) {
     const errors = validationFor(current.draft.relativePath);
+    const isDraft = current.draft.values.draft === true;
     return (
       <div className="space-y-6">
         <SectionHeading
@@ -125,12 +126,33 @@ export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
             </>
           }
         />
+        {isDraft ? (
+          <Notice tone="warn" title="This post is a Draft — it will NOT appear on the website">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <span className="flex-1">Untick “Draft (hide from the website)” below, or use this button, when it is ready for visitors.</span>
+              <Button size="sm" variant="primary" id="cms-publish-post-btn" onClick={() => store.update(collection.name, current.draft.relativePath, { ...current.draft.values, draft: false })}>
+                Publish this post
+              </Button>
+            </div>
+          </Notice>
+        ) : (
+          <p className="text-xs text-[#6e6052] flex items-center gap-1.5">
+            <EyeOff className="w-3.5 h-3.5" /> Visible to visitors once saved/approved. Tick “Draft (hide from the website)” below to hide it.
+          </p>
+        )}
         <Card className="p-5 sm:p-7">
           <DocumentForm collection={collection} values={current.draft.values} errors={errors} onChange={(v) => store.update(collection.name, current.draft.relativePath, v)} />
         </Card>
       </div>
     );
   }
+
+  // Newest first – the same order visitors see on the website.
+  const sortedDocs = [...docs].sort((a, b) => {
+    const ta = Date.parse(String(a.draft.values.publishedDate ?? ''));
+    const tb = Date.parse(String(b.draft.values.publishedDate ?? ''));
+    return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+  });
 
   return (
     <div className="space-y-6">
@@ -153,7 +175,7 @@ export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
           <div className="flex flex-col sm:flex-row gap-2">
             <input id="cms-new-post-title" className={inputClass()} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Why We Only Use San Marzano Tomatoes" />
             <Button variant="primary" onClick={createPost} disabled={!slugify(newTitle)} id="cms-create-post-btn">
-              Create draft
+              Create post
             </Button>
           </div>
           {newTitle && (
@@ -167,7 +189,7 @@ export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
       {docs.length === 0 && <Notice>No posts yet. Create the first one!</Notice>}
 
       <ul className="space-y-3">
-        {docs.map((d) => {
+        {sortedDocs.map((d) => {
           const v = d.draft.values;
           const errs = validationFor(d.draft.relativePath);
           const errCount = Object.keys(errs).length;
@@ -177,7 +199,11 @@ export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-serif text-lg font-bold text-[#24211e] truncate">{docTitle(d.draft)}</h3>
-                    {v.draft === true && <Badge tone="warn">Draft</Badge>}
+                    {v.draft === true && (
+                      <Badge tone="warn" className="normal-case tracking-normal">
+                        <EyeOff className="w-3 h-3" /> Draft · hidden from website
+                      </Badge>
+                    )}
                     {d.deleted && <Badge tone="accent">Will be deleted</Badge>}
                     {!d.original && <Badge tone="success">New</Badge>}
                     {d.original && !d.deleted && store.isDirty(d) && <Badge tone="accent">Edited</Badge>}

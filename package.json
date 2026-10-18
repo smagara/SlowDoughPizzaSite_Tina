@@ -9,7 +9,7 @@
     "build": "vite build",
     "build:tina": "tinacms build --noTelemetry -c \"vite build\"",
     "preview": "vite preview",
-    "clean": "rm -rf dist public/admin tina/__generated__",
+    "clean": "node -e \"for (const d of ['dist','coverage','public/admin','tina/__generated__']) require('fs').rmSync(d, { recursive: true, force: true })\"",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -19,14 +19,12 @@
     "check": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
-    "@vitejs/plugin-react": "^6.1.1",
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
-    "react-dom": "^19.0.1",
-    "vite": "^8.3.0"
+    "react-dom": "^19.0.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -34,11 +32,24 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^5.0.2",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.3",
     "tinacms": "^3.14.1",
     "typescript": "^7.0.2",
+    "vite": "^8.3.0",
     "vitest": "^5.0.2"
+  },
+  "overrides": {
+    "react-final-form": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
+  },
+  "allowScripts": {
+    "better-sqlite3": true,
+    "esbuild": true,
+    "core-js": false
   }
 }

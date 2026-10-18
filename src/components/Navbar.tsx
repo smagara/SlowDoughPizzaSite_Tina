@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Clock, MapPin } from 'lucide-react';
+import { Menu, X, MapPin } from 'lucide-react';
 import { getAnnouncement } from '../content';
 
 interface NavbarProps {
@@ -84,18 +84,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection, onNavigate }) => 
             })}
           </nav>
 
-          {/* Desktop Quick Badge */}
-          <div className="hidden lg:flex items-center gap-3">
-            <button
-              onClick={() => handleNavClick('hours')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#f0e8dc] text-[#5c5045] hover:bg-[#e8dec0] border border-[#ded3c5] transition-colors"
-              id="header-hours-badge"
-            >
-              <Clock className="w-3.5 h-3.5 text-[#c85a32]" />
-              <span>Wed–Sun • 4:30 PM</span>
-            </button>
-          </div>
-
           {/* Mobile Menu Button */}
           <div className="flex md:hidden">
             <button
@@ -129,10 +117,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection, onNavigate }) => 
             <div className="flex items-center gap-2 text-xs text-[#6e6357] px-4 py-1">
               <MapPin className="w-4 h-4 text-[#c85a32]" />
               <span>418 Mill Street • River District</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-[#6e6357] px-4 py-1">
-              <Clock className="w-4 h-4 text-[#c85a32]" />
-              <span>Wed–Sun from 4:30 PM • Walk-ins Welcome</span>
             </div>
           </div>
         </div>

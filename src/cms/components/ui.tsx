@@ -6,19 +6,31 @@ import React from 'react';
  * a back room of the same pizzeria rather than a generic admin panel.
  */
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent' | 'darkGhost';
 
 export const Button: React.FC<
   React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: 'sm' | 'md' }
 > = ({ variant = 'secondary', size = 'md', className = '', children, ...rest }) => {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c85a32]';
+    'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors cursor-pointer disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c85a32] focus-visible:ring-offset-1';
   const sizes = size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-5 py-2.5 text-sm';
+  // Every state (rest / hover / disabled) sets both background and text colour explicitly so the
+  // label always keeps at least WCAG AA contrast – including the buttons that sit on the dark bar.
   const variants: Record<ButtonVariant, string> = {
-    primary: 'bg-[#24211e] text-[#faf8f5] hover:bg-[#38312b] shadow-sm',
-    secondary: 'bg-[#f0e7dc] text-[#3d352e] hover:bg-[#e6dcce] border border-[#ded3c5]',
-    ghost: 'bg-transparent text-[#5c5044] hover:bg-[#f0e8dc]',
-    danger: 'bg-[#f7e6df] text-[#8c3d1e] hover:bg-[#f1d6ca] border border-[#e8c7b8]',
+    primary:
+      'bg-[#24211e] text-[#faf8f5] hover:bg-[#3d352e] hover:text-white shadow-sm disabled:bg-[#cfc6bb] disabled:text-[#5c5044]',
+    secondary:
+      'bg-[#f0e7dc] text-[#3d352e] border border-[#d9ccbb] hover:bg-[#24211e] hover:text-[#faf8f5] hover:border-[#24211e] disabled:bg-[#f3ede5] disabled:text-[#a39688] disabled:border-[#e6ddd2]',
+    ghost:
+      'bg-transparent text-[#5c5044] hover:bg-[#24211e] hover:text-[#faf8f5] disabled:text-[#b5aaa0] disabled:hover:bg-transparent disabled:hover:text-[#b5aaa0]',
+    danger:
+      'bg-[#f7e6df] text-[#8c3d1e] border border-[#e8c7b8] hover:bg-[#a84d2a] hover:text-white hover:border-[#a84d2a] disabled:bg-[#f6efeb] disabled:text-[#c9a595]',
+    // Terracotta call-to-action used on the dark action bar.
+    accent:
+      'bg-[#c85a32] text-white border border-[#c85a32] hover:bg-[#e6713f] hover:border-[#e6713f] hover:text-white disabled:bg-[#4a423c] disabled:text-[#a39688] disabled:border-[#4a423c]',
+    // Low-emphasis button for use on the dark action bar.
+    darkGhost:
+      'bg-transparent text-[#e8ded3] border border-[#5a4f46] hover:bg-[#faf8f5] hover:text-[#24211e] hover:border-[#faf8f5] disabled:text-[#7d7165] disabled:border-[#3b342d] disabled:hover:bg-transparent',
   };
   return (
     <button type="button" className={`${base} ${sizes} ${variants[variant]} ${className}`} {...rest}>

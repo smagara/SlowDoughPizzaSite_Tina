@@ -262,13 +262,13 @@ export const EditorApp: React.FC<EditorAppProps> = ({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" className="text-[#d8cfc4] hover:bg-[#352f2a] hover:text-white" disabled={store.dirtyCount === 0} onClick={() => window.confirm('Discard all unsaved changes?') && store.discardAll()}>
+              <Button size="sm" variant="darkGhost" disabled={store.dirtyCount === 0} onClick={() => window.confirm('Discard all unsaved changes?') && store.discardAll()}>
                 Discard
               </Button>
               <Button
                 size="sm"
                 id="cms-review-btn"
-                className="bg-[#c85a32] text-white hover:bg-[#b24e2a] border-transparent"
+                variant="accent"
                 disabled={store.dirtyCount === 0 || store.errorCount > 0}
                 onClick={() => {
                   setSubmitError(undefined);

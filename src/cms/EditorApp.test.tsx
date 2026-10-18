@@ -128,10 +128,13 @@ describe('EditorApp – GitHub review mode (production)', () => {
     await user.click(screen.getByRole('button', { name: /New post/ }));
     await user.type(screen.getByLabelText(/Title for the new post/), 'Why San Marzano Tomatoes Matter');
     expect(screen.getByText(/why-san-marzano-tomatoes-matter\.json/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Create draft/ }));
+    await user.click(screen.getByRole('button', { name: /Create post/ }));
 
     // New post form opens with defaults; required fields missing → issues reported
     expect(await screen.findByRole('heading', { level: 2, name: 'Why San Marzano Tomatoes Matter' })).toBeInTheDocument();
+    // New posts are visible by default – no "Draft" warning, and the checkbox is unticked
+    expect(screen.queryByText(/This post is a Draft/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Draft \(hide from the website\)/)).not.toBeChecked();
     expect(document.getElementById('cms-error-count')).toHaveTextContent(/issue/);
     await user.type(screen.getByLabelText('Author *'), 'Marco Bellini');
     await user.type(screen.getByLabelText(/^Excerpt/), 'Only D.O.P. tomatoes from the volcanic soil of Campania.');
@@ -148,7 +151,38 @@ describe('EditorApp – GitHub review mode (production)', () => {
     const entry = treeCall.body.tree.find((t: any) => t.path === 'content/posts/why-san-marzano-tomatoes-matter.json');
     expect(entry).toBeDefined();
     const written = JSON.parse(entry.content);
-    expect(written).toMatchObject({ title: 'Why San Marzano Tomatoes Matter', author: 'Marco Bellini', draft: true, artType: 'dough' });
+    expect(written).toMatchObject({ title: 'Why San Marzano Tomatoes Matter', author: 'Marco Bellini', draft: false, artType: 'dough' });
+  });
+
+  it('warns clearly when a post is a draft and offers a one-click publish', async () => {
+    const user = userEvent.setup();
+    const draftFile = { path: 'content/posts/unfinished.json', content: SAMPLE_FILES[2].content.replace('"draft": false', '"draft": true').replace('The Architecture of Time', 'Unfinished thoughts') };
+    const gh = createMockGitHub({ files: [...SAMPLE_FILES, draftFile] });
+    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, gh.validToken);
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    await user.click(await screen.findByRole('button', { name: 'Blog Posts' }));
+    expect(await screen.findByText(/Draft · hidden from website/)).toBeInTheDocument();
+    await user.click(document.getElementById('cms-edit-unfinished')!);
+    expect(await screen.findByText(/This post is a Draft — it will NOT appear on the website/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Publish this post/ }));
+    await waitFor(() => expect(screen.queryByText(/This post is a Draft/)).not.toBeInTheDocument());
+    expect(screen.getByLabelText(/Draft \(hide from the website\)/)).not.toBeChecked();
+    expect(document.getElementById('cms-dirty-count')).toHaveTextContent('1 file changed');
+    // The review dialog flags drafts; after publishing there is no flag
+    await user.click(screen.getByRole('button', { name: /Review & submit for approval/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByText(/stays hidden from the website/)).not.toBeInTheDocument();
+  });
+
+  it('lists posts newest first in the editor', async () => {
+    const user = userEvent.setup();
+    const older = { path: 'content/posts/aaa-older.json', content: SAMPLE_FILES[2].content.replace('2026-09-14', '2020-01-01').replace('The Architecture of Time', 'An older essay') };
+    const gh = createMockGitHub({ files: [...SAMPLE_FILES, older] });
+    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, gh.validToken);
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    await user.click(await screen.findByRole('button', { name: 'Blog Posts' }));
+    const headings = (await screen.findAllByRole('heading', { level: 3 })).map((h) => h.textContent);
+    expect(headings).toEqual(['The Architecture of Time', 'An older essay']);
   });
 
   it('edits a menu price and surfaces the change in the PR body', async () => {

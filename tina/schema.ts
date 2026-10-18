@@ -249,7 +249,9 @@ export const postCollection: Collection = {
     readTime: '3 min read',
     publishedDate: new Date().toISOString(),
     artType: 'dough',
-    draft: true,
+    // New posts are visible as soon as the change is saved (local) or approved (production).
+    // Tick "Draft" to keep an unfinished essay in the repository without showing it.
+    draft: false,
     excerpt: '',
     keyTakeaways: [],
     content: [{ sectionHeading: '', paragraphs: [''], quote: '' }],
@@ -281,7 +283,7 @@ export const postCollection: Collection = {
       type: 'boolean',
       name: 'draft',
       label: 'Draft (hide from the website)',
-      description: 'Drafts stay in the repository but are not shown to visitors.',
+      description: 'Tick this to keep the post in the repository but hide it from visitors. Leave it unticked to publish.',
     },
     textarea('excerpt', 'Excerpt', { required: true, max: LIMITS.long }),
     textList('keyTakeaways', 'Key takeaways', { max: LIMITS.long, maxItems: 6 }),

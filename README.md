@@ -65,11 +65,27 @@ PR checks are [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 Copy `.env.example` to `.env` to override defaults (owner/repo/base branch/branch prefix/mode). The
 deploy workflow sets `BASE_PATH=/<repo>/` so asset URLs work under `https://<owner>.github.io/<repo>/`.
 
+### Blog posts and the Draft flag
+
+A new post is **visible as soon as it is saved (local mode) or approved and merged (production)**.
+Tick *Draft (hide from the website)* on a post to keep it in the repository without showing it; the
+editor shows a prominent "This post is a Draft" notice (with a one-click *Publish this post* button)
+and the review dialog flags drafts before you submit. `getPublishedPosts()` filters drafts out of the site.
+
+## Notes on `npm install` output
+
+| Message | Meaning | Action |
+| --- | --- | --- |
+| `ERESOLVE overriding peer dependency … react-final-form@6.5.9 … react@"^16.8.0 \|\| ^17.0.0 \|\| ^18.0.0"` | `tinacms` (dev-only) still declares React 16–18 as a peer; this project uses React 19. The Tina admin runs on `@tinacms/app`'s own bundled React 18, so nothing breaks. | Silenced by the `overrides` entry in `package.json` that aligns the peer with the project's React. No action needed. |
+| `install-scripts … better-sqlite3, core-js, esbuild` (npm ≥ 12) | npm 12 blocks dependency install scripts until they are reviewed. `esbuild` verifies its platform binary (optional – the binary also ships as an optional dependency), `better-sqlite3` downloads a prebuilt binary that Tina only needs for its optional search index, `core-js` only prints a funding banner. | Policy is recorded in `package.json` → `allowScripts` (`esbuild`/`better-sqlite3` approved, `core-js` denied). Review with `npm install-scripts ls`. Older npm ignores the field. |
+| `N vulnerabilities (… moderate, … high)` | These come from the **development-only** toolchain (Tina CLI/admin, GraphQL tooling, Vitest/jsdom). The published website ships only `react`, `react-dom` and `lucide-react`; the staff editor ships no Tina runtime. | Check what actually ships with `npm audit --omit=dev` (expected clean). Review `npm audit` periodically and bump `tinacms`/`@tinacms/cli` when fixes land. Do **not** run `npm audit fix --force` – it downgrades/upgrades across majors. |
+| `DEP0190 DeprecationWarning: Passing args to a child process with shell option true` (during `npm run dev`) | Emitted by Node 24+ for the way `@tinacms/cli` spawns the `-c` sub-command. Harmless; the arguments are our own fixed strings. | Ignore, or add `node-options=--no-deprecation` to a local `.npmrc` until Tina updates. |
+
 ## Scripts
 
 | Script | Purpose |
 | --- | --- |
-| `npm run dev` | Tina local mode + Vite dev server |
+| `npm run dev` | Tina local mode + Vite dev server (works on Windows/macOS/Linux) |
 | `npm run build` | Production build to `dist/` (what GitHub Pages serves) |
 | `npm run build:tina` | Build including the stock Tina admin (only useful with TinaCloud credentials) |
 | `npm test` / `npm run test:watch` | Vitest unit + component tests (jsdom) |

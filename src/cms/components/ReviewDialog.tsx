@@ -52,6 +52,11 @@ export const ReviewDialog: React.FC<Props> = ({ backend, summary, defaultTitle, 
                   </span>
                   <span className="text-[11px] font-mono uppercase tracking-wider text-[#8a4224] bg-[#f5e6dd] px-2 py-0.5 rounded">{d.action}</span>
                 </div>
+                {d.action !== 'deleted' && d.document.values.draft === true && (
+                  <p className="mt-2 text-xs font-semibold text-[#8a4224] bg-[#fbf0df] border border-[#ead5b6] rounded px-2 py-1">
+                    Draft — this post will be saved but stays hidden from the website until “Draft” is unticked.
+                  </p>
+                )}
                 {d.lines.length > 0 && (
                   <ul className="mt-2 space-y-1 text-xs text-[#54483e]">
                     {d.lines.slice(0, 25).map((l, i) => (

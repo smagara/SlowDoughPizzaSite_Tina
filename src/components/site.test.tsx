@@ -79,11 +79,16 @@ describe('content helpers', () => {
     expect(formatPublishedDate('garbage')).toBe('garbage');
   });
   it('sorts posts newest first and derives ids from filenames', () => {
+    // Deliberately independent of which posts exist – staff add posts all the time.
     const posts = getAllPosts();
-    expect(posts[0].id).toBe('importance-of-dough-aging');
-    expect(posts[0].slug).toBe(posts[0].id);
-    for (let i = 1; i < posts.length; i++) {
-      expect(Date.parse(posts[i - 1].publishedDate)).toBeGreaterThanOrEqual(Date.parse(posts[i].publishedDate));
+    expect(posts.length).toBeGreaterThan(0);
+    for (const post of posts) {
+      expect(post.slug).toBe(post.id);
+      expect(post.id).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
     }
+    const times = posts.map((p) => Date.parse(p.publishedDate));
+    expect(times.every((t) => !Number.isNaN(t))).toBe(true);
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+    expect(posts.map((p) => p.id)).toContain('importance-of-dough-aging');
   });
 });
