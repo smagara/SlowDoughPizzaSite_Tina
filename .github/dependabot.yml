@@ -1,0 +1,22 @@
+# Keeps the GitHub Actions pins (actions/checkout, setup-node, upload-pages-artifact, deploy-pages…)
+# on the current major so "Node.js 20 is deprecated" style warnings are fixed by merging a PR.
+# npm dependencies are grouped into a single monthly PR so routine bumps are one review, not twenty.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, ci]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      tina:
+        patterns: ["tinacms", "@tinacms/*"]
+      tooling:
+        patterns: ["vite", "@vitejs/*", "vitest", "@vitest/*", "jsdom", "@testing-library/*", "typescript", "@types/*", "tailwindcss", "@tailwindcss/*"]

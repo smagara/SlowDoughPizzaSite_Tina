@@ -7,11 +7,12 @@ import { LocalTinaBackend } from './backends/localTina';
 import { CmsError, type ContentBackend } from './backends/types';
 import { CollectionEditor } from './components/CollectionEditor';
 import { ReviewDialog } from './components/ReviewDialog';
-import { SignIn } from './components/SignIn';
+import { SignIn, type RememberChoice } from './components/SignIn';
 import { Badge, Button, Card, Notice } from './components/ui';
 import { cmsConfig, repoUrl, type CmsConfig } from './config';
 import { changeSummaryMarkdown, collectionLabel, summarizeChanges } from './diff';
 import type { SubmitResult } from './documents';
+import { clearVault, openVault, saveToVault, VaultError, vaultInfo } from './tokenVault';
 import { useEditorStore } from './useEditorStore';
 
 export const TOKEN_STORAGE_KEY = 'slowdough.cms.github-token';
@@ -31,7 +32,7 @@ export interface EditorAppProps {
 
 type Session =
   | { status: 'detecting' }
-  | { status: 'signed-out'; error?: string; busy?: boolean }
+  | { status: 'signed-out'; error?: string; busy?: boolean; remembered?: { login: string } | null }
   | { status: 'ready'; backend: ContentBackend; user?: GitHubUser };
 
 /**
@@ -64,21 +65,45 @@ export const EditorApp: React.FC<EditorAppProps> = ({
 
   // ---- mode detection & token restore -------------------------------------------------------
   const signIn = useCallback(
-    async (token: string) => {
-      setSession({ status: 'signed-out', busy: true });
+    async (token: string, remember?: RememberChoice) => {
+      setSession({ status: 'signed-out', busy: true, remembered: vaultInfo() });
       try {
         const client = new GitHubClient(token, doFetch);
         const user = await GitHubBackend.verifyAccess(client, config);
         window.sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+        if (remember) {
+          // Only a verified, authorised token is ever remembered on the device.
+          await saveToVault(token, remember.passcode, user.login);
+        }
         setSession({ status: 'ready', backend: new GitHubBackend(client, user, config, undefined, collections), user });
       } catch (e) {
         window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-        const message = e instanceof CmsError ? e.message : 'Could not sign in. Please try again.';
-        setSession({ status: 'signed-out', error: message });
+        const message = e instanceof CmsError || e instanceof VaultError ? e.message : 'Could not sign in. Please try again.';
+        setSession({ status: 'signed-out', error: message, remembered: vaultInfo() });
       }
     },
     [collections, config, doFetch],
   );
+
+  const unlock = useCallback(
+    async (passcode: string) => {
+      setSession({ status: 'signed-out', busy: true, remembered: vaultInfo() });
+      try {
+        const { token } = await openVault(passcode);
+        await signIn(token);
+      } catch (e) {
+        const message = e instanceof VaultError ? e.message : 'Could not unlock. Please try again.';
+        setSession({ status: 'signed-out', error: message, remembered: vaultInfo() });
+      }
+    },
+    [signIn],
+  );
+
+  const forgetDevice = useCallback(() => {
+    clearVault();
+    window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    setSession({ status: 'signed-out', remembered: null });
+  }, []);
 
   useEffect(() => {
     if (injectedBackend) return;
@@ -94,7 +119,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({
         await signIn(saved);
         return;
       }
-      if (!cancelled) setSession({ status: 'signed-out' });
+      if (!cancelled) setSession({ status: 'signed-out', remembered: vaultInfo() });
     })();
     return () => {
       cancelled = true;
@@ -111,7 +136,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({
   const signOut = () => {
     window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
     setResult(undefined);
-    setSession({ status: 'signed-out' });
+    setSession({ status: 'signed-out', remembered: vaultInfo() });
   };
 
   const exit = () => {
@@ -178,7 +203,9 @@ export const EditorApp: React.FC<EditorAppProps> = ({
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32 space-y-8">
         {session.status === 'detecting' && <p className="text-sm text-[#75685c]">Checking for a local Tina server…</p>}
 
-        {session.status === 'signed-out' && <SignIn onSubmit={signIn} error={session.error} busy={session.busy} />}
+        {session.status === 'signed-out' && (
+          <SignIn onSubmit={signIn} onUnlock={unlock} onForgetDevice={forgetDevice} remembered={session.remembered} error={session.error} busy={session.busy} />
+        )}
 
         {session.status === 'ready' && (
           <>
@@ -309,7 +336,13 @@ const ResultPanel: React.FC<{ result: SubmitResult; onDismiss: () => void }> = (
         ) : (
           <>
             <h3 className="font-serif text-xl font-bold text-[#24211e]">Saved locally</h3>
-            <p>Tina wrote {result.files.length} file(s). The dev site has hot-reloaded – open it in another tab to check, then commit with git.</p>
+            <p>
+              Tina wrote {result.files.length} file(s). Open the website in another tab to check it — it hot-reloads on its own, but{' '}
+              <strong>refresh the page (F5) if you do not see the change</strong>. Commit with git when you are happy.
+            </p>
+            <a href={import.meta.env.BASE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-semibold underline decoration-[#c85a32]/60 hover:text-[#c85a32]">
+              Open the website in a new tab <ExternalLink className="w-3.5 h-3.5" />
+            </a>
             <ul className="list-disc pl-5 text-xs font-mono">
               {result.files.map((f) => (
                 <li key={f}>{f}</li>

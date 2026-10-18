@@ -118,7 +118,8 @@ export const ReviewDialog: React.FC<Props> = ({ backend, summary, defaultTitle, 
               </>
             ) : (
               <>
-                Local mode: Tina will write these files into <code>content/</code> on this computer and the dev site hot-reloads. Commit and push them with git when you are happy.
+                Local mode: Tina will write these files into <code>content/</code> on this computer. The website tab (<code>http://localhost:3000/</code>) updates by
+                itself; if it does not, refresh that tab (F5). Commit and push the files with git when you are happy.
               </>
             )}
           </Notice>
