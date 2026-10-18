@@ -1,0 +1,23 @@
+{
+  "title": "Some thoughts",
+  "subtitle": "Some thoughts o' mine",
+  "author": "Me",
+  "authorRole": "Webmaster and bottlewasher",
+  "readTime": "3 min read",
+  "publishedDate": "2026-10-18T05:38:00.690Z",
+  "artType": "oven",
+  "draft": false,
+  "excerpt": "Ipsem lorem",
+  "keyTakeaways": [
+    "Believe the commit"
+  ],
+  "content": [
+    {
+      "sectionHeading": "Main Section",
+      "paragraphs": [
+        "Ipsem lorem and on and on and on and ... so forth."
+      ],
+      "quote": "Ipsem!"
+    }
+  ]
+}
