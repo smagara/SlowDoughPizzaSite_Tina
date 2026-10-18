@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, X, Clock, MapPin, Sparkles } from 'lucide-react';
+import { Menu, X, Clock, MapPin } from 'lucide-react';
+import { getAnnouncement } from '../content';
 
 interface NavbarProps {
   activeSection: string;
@@ -8,6 +9,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activeSection, onNavigate }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const announcement = getAnnouncement();
 
   const navItems = [
     { id: 'philosophy', label: 'The Differentiator' },
@@ -24,13 +26,22 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection, onNavigate }) => 
 
   return (
     <header className="sticky top-0 z-40 bg-[#faf8f5]/95 backdrop-blur-md border-b border-[#e6ddd2] transition-colors">
-      {/* Top micro banner */}
-      <div className="bg-[#24211e] text-[#e8ded3] text-xs py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-[#c85a32] animate-pulse inline-block" />
-        <span>Today's Dough: 72-Hour Cold Cellar Ferment</span>
-        <span className="text-[#8c8278] hidden sm:inline">•</span>
-        <span className="text-[#b5aaa0] hidden sm:inline">Doors open at 4:30 PM (Wed–Sun)</span>
-      </div>
+      {/* Top micro banner – "Dough announcement", editable in the CMS (content/settings/announcement.json) */}
+      {announcement.enabled && (
+        <div
+          id="dough-announcement"
+          className="bg-[#24211e] text-[#e8ded3] text-xs py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2"
+        >
+          <span className="w-2 h-2 rounded-full bg-[#c85a32] animate-pulse inline-block" />
+          <span>{announcement.headline}</span>
+          {announcement.detail && (
+            <>
+              <span className="text-[#8c8278] hidden sm:inline">•</span>
+              <span className="text-[#b5aaa0] hidden sm:inline">{announcement.detail}</span>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">

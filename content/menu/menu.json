@@ -1,0 +1,188 @@
+{
+  "eyebrow": "Seasonal Artisanal Selections",
+  "title": "Our Daily Menu",
+  "intro": "Every pizza is an authentic 12-inch Neapolitan pie crafted from 72-hour slow-fermented dough, stretched gently by hand to preserve the airy cornicione, and flash-baked in our 900°F wood-fired hearth.",
+  "categories": [
+    {
+      "id": "neapolitan-pies",
+      "title": "Neapolitan Pizzas (Pizze Napoletane)",
+      "subtitle": "Strict Neapolitan discipline: hand-crushed San Marzano D.O.P. tomatoes, fresh basil, 72-hour cold-fermented dough, flash-baked in 90 seconds at 900°F",
+      "items": [
+        {
+          "id": "margherita-verace",
+          "name": "Margherita Verace D.O.P.",
+          "italianName": "Pizza Margherita Tradizionale",
+          "description": "Crushed San Marzano D.O.P. tomatoes, fresh fior di latte mozzarella d’Agerola, aged pecorino romano, organic Genovese basil, cold-pressed extra virgin olive oil.",
+          "price": 19,
+          "tags": [
+            "Neapolitan Classic",
+            "Vegetarian"
+          ],
+          "isVegetarian": true,
+          "isVegan": false
+        },
+        {
+          "id": "marinara-antica",
+          "name": "Marinara Antica (Est. 1734)",
+          "italianName": "Pizza Marinara Tradizionale",
+          "description": "Slow-simmered San Marzano tomatoes, thinly shaved fresh garlic, wild Sicilian mountain oregano, sea salt, cold-pressed olive oil. No cheese.",
+          "price": 16,
+          "tags": [
+            "Ancient Classic",
+            "Vegan",
+            "Dairy-Free"
+          ],
+          "isVegetarian": true,
+          "isVegan": true
+        },
+        {
+          "id": "bufalina-campana",
+          "name": "Bufalina D.O.P.",
+          "italianName": "Margherita con Mozzarella di Bufala",
+          "description": "San Marzano D.O.P. tomatoes, fresh creamy Mozzarella di Bufala Campana flown in weekly, torn fresh sweet basil, coarse Sicilian sea salt, EVOO.",
+          "price": 23,
+          "tags": [
+            "House Specialty",
+            "Vegetarian"
+          ],
+          "isVegetarian": true,
+          "isVegan": false
+        },
+        {
+          "id": "cosacca-storica",
+          "name": "La Cosacca (Historic 1844)",
+          "italianName": "Antica Pizza Cosacca",
+          "description": "Crushed sweet San Marzano tomatoes, abundant grated 18-month Pecorino Romano D.O.P., fresh sweet basil, cracked black pepper, extra virgin olive oil. The historic minimalist street pizza of Naples.",
+          "price": 17,
+          "tags": [
+            "Historic Recipe",
+            "Vegetarian"
+          ],
+          "isVegetarian": true,
+          "isVegan": false
+        },
+        {
+          "id": "diavola-napoletana",
+          "name": "Diavola Napoletana",
+          "italianName": "Pizza alla Diavola con Peperoncino",
+          "description": "San Marzano D.O.P. sauce, smoked provola affumicata cheese, artisan spicy salame napoletano, crushed fermented Calabrian hot chili paste, wild mountain oregano.",
+          "price": 22,
+          "tags": [
+            "Spicy",
+            "House Favorite"
+          ],
+          "isVegetarian": false,
+          "isVegan": false
+        },
+        {
+          "id": "capricciosa-napoletana",
+          "name": "Capricciosa Napoletana",
+          "italianName": "Pizza Capricciosa Tradizionale",
+          "description": "San Marzano tomato base, fior di latte, artisanal prosciutto cotto (rosemary ham), wood-roasted cremini mushrooms, tender artichoke hearts, Gaeta black olives.",
+          "price": 24,
+          "tags": [
+            "Traditional"
+          ],
+          "isVegetarian": false,
+          "isVegan": false
+        }
+      ]
+    },
+    {
+      "id": "small-plates",
+      "title": "Small Plates & Fresh Greens",
+      "subtitle": "Artisan accompaniments prepared with wood-fired hearth techniques",
+      "items": [
+        {
+          "id": "castelfranco-salad",
+          "name": "Castelfranco & Shaved Parmigiano",
+          "italianName": "Insalata di Radicchio",
+          "description": "Speckled Castelfranco radicchio, shaved 24-month Parmigiano-Reggiano, toasted pine nuts, white Modena balsamic vinaigrette.",
+          "price": 14,
+          "tags": [
+            "Gluten-Free",
+            "Vegetarian"
+          ],
+          "isVegetarian": true,
+          "isVegan": false
+        },
+        {
+          "id": "aged-dough-focaccia",
+          "name": "Warm 72-Hour Focaccia & Cultured Butter",
+          "italianName": "Focaccia della Casa al Burro Nocciola",
+          "description": "Hearth-baked wedge of our signature 72-hour dough topped with rosemary, sea salt, served with house-whipped cultured honey-herb butter.",
+          "price": 10,
+          "tags": [
+            "Signature Dough"
+          ],
+          "isVegetarian": true,
+          "isVegan": false
+        },
+        {
+          "id": "marinated-olives",
+          "name": "Wood-Warmed Castelvetrano Olives",
+          "italianName": "Olive Calde Condite",
+          "description": "Vibrant green Sicilian olives gently warmed in the oven mouth with preserved lemon peel, cracked coriander, and wild fennel.",
+          "price": 8,
+          "tags": [
+            "Vegan",
+            "Gluten-Free"
+          ],
+          "isVegetarian": true,
+          "isVegan": true
+        }
+      ]
+    },
+    {
+      "id": "beverages",
+      "title": "Non-Alcoholic Refreshments",
+      "subtitle": "Traditional Italian sodas, sparkling mountain mineral water, and house herbal infusions",
+      "items": [
+        {
+          "id": "san-pellegrino-sparkling",
+          "name": "Italian Sparkling Mineral Water (750ml)",
+          "italianName": "",
+          "description": "Bottled at the source in San Pellegrino Terme, crisp fine effervescence.",
+          "price": 6,
+          "tags": [],
+          "isVegetarian": false,
+          "isVegan": true
+        },
+        {
+          "id": "chinotto-soda",
+          "name": "Artisanal Chinotto & Aranciata Amara",
+          "italianName": "",
+          "description": "Bitter citrus Sicilian herbal soda brewed with Ligurian myrtle-leaf orange extracts.",
+          "price": 5,
+          "tags": [],
+          "isVegetarian": false,
+          "isVegan": true
+        },
+        {
+          "id": "sicilian-lemonade",
+          "name": "Fresh Sicilian Meyer Lemon & Rosemary Soda",
+          "italianName": "",
+          "description": "Hand-squeezed Meyer lemons, crushed garden rosemary syrup, and sparkling spring water.",
+          "price": 5,
+          "tags": [
+            "House-Made"
+          ],
+          "isVegetarian": false,
+          "isVegan": true
+        },
+        {
+          "id": "blood-orange-iced-tea",
+          "name": "Cold-Brewed Hibiscus & Blood Orange Tea",
+          "italianName": "Tè freddo",
+          "description": "Unsweetened slow cold-steeped wild hibiscus flowers, dried blood orange peel, and fresh mint sprig.",
+          "price": 5,
+          "tags": [
+            "House-Made"
+          ],
+          "isVegetarian": false,
+          "isVegan": true
+        }
+      ]
+    }
+  ]
+}

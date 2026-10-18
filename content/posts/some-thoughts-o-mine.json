@@ -1,0 +1,23 @@
+{
+  "title": "Some thoughts o mine",
+  "subtitle": "Just some thoughts",
+  "author": "Me me me",
+  "authorRole": "Chief bottlewasher",
+  "readTime": "3 min read",
+  "publishedDate": "2026-10-18T03:13:01.546Z",
+  "artType": "dough",
+  "draft": true,
+  "excerpt": "Ipsem lorem and so forth",
+  "keyTakeaways": [
+    "Believe what you see"
+  ],
+  "content": [
+    {
+      "sectionHeading": "Main section",
+      "paragraphs": [
+        "Ipsem Lorem and on and on and on and so forth and on and on."
+      ],
+      "quote": ""
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schedule": [
+    {
+      "day": "Monday",
+      "hours": "Closed",
+      "statusNote": "Dough mixing & cold cellar resting day",
+      "isClosed": true
+    },
+    {
+      "day": "Tuesday",
+      "hours": "Closed",
+      "statusNote": "Long fermentation in progress (Batch 1)",
+      "isClosed": true
+    },
+    {
+      "day": "Wednesday",
+      "hours": "4:30 PM – 9:30 PM",
+      "statusNote": "72-Hour aged dough available",
+      "isClosed": false
+    },
+    {
+      "day": "Thursday",
+      "hours": "1:30 PM – 9:30 PM",
+      "statusNote": "72-Hour aged dough available",
+      "isClosed": false
+    },
+    {
+      "day": "Friday",
+      "hours": "4:00 PM – 10:30 PM",
+      "statusNote": "Weekend batch • Limited supply",
+      "isClosed": false
+    },
+    {
+      "day": "Saturday",
+      "hours": "4:00 PM – 10:30 PM",
+      "statusNote": "Weekend batch • Limited supply",
+      "isClosed": false
+    },
+    {
+      "day": "Sunday",
+      "hours": "3:30 PM – 9:00 PM",
+      "statusNote": "Sunday supper service",
+      "isClosed": false
+    }
+  ]
+}

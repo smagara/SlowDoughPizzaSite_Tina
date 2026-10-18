@@ -1,0 +1,16 @@
+digraph Sequence {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=11, bgcolor="white", pad=0.3, nodesep=0.25, ranksep=0.35, splines=polyline];
+  node  [fontname="Helvetica", fontsize=9.5, style="filled,rounded", shape=box, color="#ded3c5", fillcolor="#faf7f2", penwidth=1.1, margin="0.14,0.06"];
+  edge  [fontname="Helvetica", fontsize=9, color="#6e6052", arrowsize=0.7];
+
+  s1 [label="① GET /user\n→ login, avatar"];
+  s2 [label="② GET /repos/{o}/{r}/collaborators/{login}/permission\n→ must be write / maintain / admin\n(fallback: GET /repos/{o}/{r} → permissions.push)"];
+  s3 [label="③ GET /repos/{o}/{r}/contents/content/<dir>?ref=main\n→ file list + blob SHAs\nGET …/contents/<file>?ref=main (raw)\n→ JSON per document"];
+  s4 [label="④ GET /git/ref/heads/main → base commit SHA\nGET /git/commits/{sha} → base tree SHA\nGET /git/trees/{tree}?recursive=1\n→ conflict check vs. loaded SHAs"];
+  s5 [label="⑤ POST /git/trees\n{ base_tree, tree:[ {path, content} | {path, sha:null} ] }\n(upserts + deletes in one tree)"];
+  s6 [label="⑥ POST /git/commits\n{ message, tree, parents:[base] }"];
+  s7 [label="⑦ POST /git/refs\n{ ref: refs/heads/cms/<user>/<stamp>, sha }\n(422 'exists' → retry with suffix)"];
+  s8 [label="⑧ POST /pulls\n{ head: cms/…, base: main, title, body }\n→ html_url shown to staff"];
+
+  s1 -> s2 -> s3 -> s4 -> s5 -> s6 -> s7 -> s8;
+}
