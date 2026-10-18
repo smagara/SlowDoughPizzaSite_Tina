@@ -107,18 +107,6 @@
           "isVegan": false
         },
         {
-          "id": "aged-dough-focaccia",
-          "name": "Warm 72-Hour Focaccia & Cultured Butter",
-          "italianName": "Focaccia della Casa al Burro Nocciola",
-          "description": "Hearth-baked wedge of our signature 72-hour dough topped with rosemary, sea salt, served with house-whipped cultured honey-herb butter.",
-          "price": 10,
-          "tags": [
-            "Signature Dough"
-          ],
-          "isVegetarian": true,
-          "isVegan": false
-        },
-        {
           "id": "marinated-olives",
           "name": "Wood-Warmed Castelvetrano Olives",
           "italianName": "Olive Calde Condite",
@@ -129,6 +117,37 @@
             "Gluten-Free"
           ],
           "isVegetarian": true,
+          "isVegan": true
+        },
+        {
+          "id": "aged-dough-focaccia",
+          "name": "Warm 72-Hour Focaccia & Cultured Butter",
+          "italianName": "Focaccia della Casa al Burro Nocciola",
+          "description": "Hearth-baked wedge of our signature 72-hour dough topped with rosemary, sea salt, served with house-whipped cultured honey-herb butter.",
+          "price": 10,
+          "tags": [
+            "Signature Dough"
+          ],
+          "isVegetarian": true,
+          "isVegan": false
+        }
+      ]
+    },
+    {
+      "id": "new-category-alcohol",
+      "title": "Alcoholic Beverages",
+      "subtitle": "The good stuff",
+      "items": [
+        {
+          "id": "buffalo-trace-w97j",
+          "name": "Buffalo Trace Whiskey",
+          "italianName": "Bufalo traccia",
+          "description": "Good sipping Bourbon",
+          "price": 12.88,
+          "tags": [
+            "Bourbon"
+          ],
+          "isVegetarian": false,
           "isVegan": true
         }
       ]
@@ -178,25 +197,6 @@
           "price": 5,
           "tags": [
             "House-Made"
-          ],
-          "isVegetarian": false,
-          "isVegan": true
-        }
-      ]
-    },
-    {
-      "id": "new-category-alcohol",
-      "title": "Alcoholic Beverages",
-      "subtitle": "The good stuff",
-      "items": [
-        {
-          "id": "buffalo-trace-w97j",
-          "name": "Buffalo Trace Whiskey",
-          "italianName": "Bufalo traccia",
-          "description": "Good sipping Bourbon",
-          "price": 12.88,
-          "tags": [
-            "Bourbon"
           ],
           "isVegetarian": false,
           "isVegan": true
