@@ -48,8 +48,11 @@ main → owner reviews (CI validates content) → merge → GitHub Action builds
 Nothing is ever written to `main` by the editor. Deployment is [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml);
 PR checks are [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Both run on Node 24 and use the
 Node-24 majors of the official actions; [`.github/dependabot.yml`](.github/dependabot.yml) opens a PR
-whenever a newer major of an action is published, so "Node.js 20 is deprecated" style warnings are
-fixed by merging that PR rather than by hand-editing YAML.
+whenever a newer major of an action is published. The deploy job packages `dist/` itself (tar +
+`actions/upload-artifact`) instead of `upload-pages-artifact`, whose internally pinned Node 20
+`upload-artifact` cannot be updated from here; `actions/deploy-pages` has no Node 24 major yet and is
+run with the explicit `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` opt-in (TDD §21.1 has a branch-deploy
+fallback if that notice must disappear entirely).
 
 ### One-time repository setup
 
@@ -73,9 +76,21 @@ deploy workflow sets `BASE_PATH=/<repo>/` so asset URLs work under `https://<own
 On the sign-in screen, **Remember me on this device with a passcode** (ticked by default) encrypts the
 token in the browser (PBKDF2-SHA-256 → AES-256-GCM, WebCrypto) and stores only the ciphertext in
 `localStorage`. On the next visit staff type their passcode instead of the token. Five wrong passcodes
-erase the remembered token; *Forget this device* erases it on demand. The token is only ever remembered
-after it has been verified as belonging to a collaborator with write access. See the TDD (D17) for the
-security trade-offs and why a "Sign in with GitHub" proxy remains the long-term recommendation.
+erase that person's remembered token; *Forget @name* / *Forget everyone* erase on demand. A token is only
+remembered after it has been verified as belonging to a collaborator with write access.
+
+**Shared laptop?** Works without separate machines: each person signs in once with their own token and
+passcode, and the device remembers everyone (up to 8). Later visits ask *"Who is editing?"* → pick your
+name → your passcode. Sessions belong to the tab and lock after 30 minutes without activity
+(`VITE_CMS_IDLE_LOCK_MINUTES`), so the next person cannot submit under the previous name. Separate
+browser profiles are still the stronger option where strict accountability matters. See TDD D17/§21.2.
+
+### Several edits in one Pull Request
+
+In the review dialog, **Back to editing** keeps everything you have changed so far; make more changes
+and come back to submit a single Pull Request. Batch edits that belong together (tonight's menu);
+submit separately when they don't — one rejected item holds back the whole batch. TDD §21.3 has the
+full pros/cons.
 
 ### Edit screens
 

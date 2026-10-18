@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { GitBranch, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { cmsConfig, repoUrl, TOKEN_HELP_URL } from '../config';
-import { PASSCODE_MIN_LENGTH, validatePasscode } from '../tokenVault';
+import { PASSCODE_MIN_LENGTH, validatePasscode, type RememberedUser } from '../tokenVault';
 import { Button, Card, Notice, inputClass } from './ui';
 
 export interface RememberChoice {
@@ -11,11 +11,14 @@ export interface RememberChoice {
 interface SignInProps {
   /** Paste-a-token sign in. `remember` is set when the user chose to keep the token on this device. */
   onSubmit: (token: string, remember?: RememberChoice) => Promise<void>;
-  /** Passcode unlock of a token remembered on this device. */
-  onUnlock: (passcode: string) => Promise<void>;
-  onForgetDevice: () => void;
-  /** Login of the remembered token, if any. */
-  remembered?: { login: string } | null;
+  /** Passcode unlock of a token remembered on this device for the given login. */
+  onUnlock: (login: string, passcode: string) => Promise<void>;
+  /** Forget one remembered person (login) or everyone (undefined). */
+  onForgetDevice: (login?: string) => void;
+  /** People remembered on this device, most recently used first. */
+  remembered?: RememberedUser[];
+  /** Shown after an inactivity lock. */
+  lockedReason?: string;
   error?: string;
   busy?: boolean;
 }
@@ -26,8 +29,10 @@ interface SignInProps {
  * ever sent to api.github.com. Optionally the token is remembered on the device, encrypted with a
  * passcode the staff member chooses, so later visits only need the passcode.
  */
-export const SignIn: React.FC<SignInProps> = ({ onSubmit, onUnlock, onForgetDevice, remembered, error, busy }) => {
+export const SignIn: React.FC<SignInProps> = ({ onSubmit, onUnlock, onForgetDevice, remembered = [], lockedReason, error, busy }) => {
   const [token, setToken] = useState('');
+  const [who, setWho] = useState<string>(remembered[0]?.login ?? '');
+  const current = remembered.find((r) => r.login === who) ?? remembered[0];
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
   const [passcode, setPasscode] = useState('');
@@ -36,8 +41,9 @@ export const SignIn: React.FC<SignInProps> = ({ onSubmit, onUnlock, onForgetDevi
   const passcodeError = remember && (passcode || confirm) ? validatePasscode(passcode, confirm) : undefined;
   const canSubmit = !!token.trim() && (!remember || (!!passcode && !validatePasscode(passcode, confirm)));
 
-  // ---- Unlock with passcode ---------------------------------------------------------------------
-  if (remembered && !useDifferentToken) {
+  // ---- Unlock with passcode -----------------------------------------------------------------------
+  if (current && !useDifferentToken) {
+    const several = remembered.length > 1;
     return (
       <div className="max-w-xl mx-auto">
         <Card className="p-6 sm:p-8 space-y-6">
@@ -46,18 +52,42 @@ export const SignIn: React.FC<SignInProps> = ({ onSubmit, onUnlock, onForgetDevi
               <ShieldCheck className="w-3.5 h-3.5" />
               Staff only
             </span>
-            <h2 className="font-serif text-2xl font-bold text-[#24211e]">Welcome back, @{remembered.login}</h2>
-            <p className="text-sm text-[#615448] leading-relaxed">Enter the passcode you chose for this device to unlock your GitHub access.</p>
+            <h2 className="font-serif text-2xl font-bold text-[#24211e]">{several ? 'Who is editing?' : `Welcome back, @${current.login}`}</h2>
+            <p className="text-sm text-[#615448] leading-relaxed">
+              {several ? 'Pick your name, then enter the passcode you chose for this device.' : 'Enter the passcode you chose for this device to unlock your GitHub access.'}
+            </p>
           </div>
+          {lockedReason && <Notice tone="warn">{lockedReason}</Notice>}
           <form
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (passcode) void onUnlock(passcode);
+              if (passcode) void onUnlock(current.login, passcode);
             }}
           >
+            {several && (
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Remembered people on this device">
+                {remembered.map((r) => (
+                  <button
+                    key={r.login}
+                    type="button"
+                    role="radio"
+                    aria-checked={r.login === current.login}
+                    onClick={() => {
+                      setWho(r.login);
+                      setPasscode('');
+                    }}
+                    className={`px-3.5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer ${
+                      r.login === current.login ? 'bg-[#24211e] text-[#faf8f5]' : 'bg-[#f0e8dc] text-[#54483d] hover:bg-[#e4d8cb]'
+                    }`}
+                  >
+                    @{r.login}
+                  </button>
+                ))}
+              </div>
+            )}
             <label htmlFor="vault-passcode" className="block text-xs font-semibold uppercase tracking-wider text-[#6e6052]">
-              Passcode
+              Passcode for @{current.login}
             </label>
             <input
               id="vault-passcode"
@@ -82,22 +112,38 @@ export const SignIn: React.FC<SignInProps> = ({ onSubmit, onUnlock, onForgetDevi
                 <LockKeyhole className="w-4 h-4 text-[#c85a32]" />
                 {busy ? 'Unlocking…' : 'Unlock'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setUseDifferentToken(true)} disabled={busy}>
-                Use a different token
+              <Button variant="ghost" size="sm" onClick={() => setUseDifferentToken(true)} disabled={busy} id="cms-other-token-btn">
+                {several ? 'Someone else / new token' : 'Use a different token'}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 id="cms-forget-device-btn"
                 onClick={() => {
-                  if (window.confirm('Forget the remembered token on this device? You will need to paste a GitHub token next time.')) onForgetDevice();
+                  if (window.confirm(`Forget the remembered token for @${current.login} on this device? They will need to paste a GitHub token next time.`)) onForgetDevice(current.login);
                 }}
                 disabled={busy}
               >
-                Forget this device
+                Forget @{current.login}
               </Button>
+              {several && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm('Forget everyone remembered on this device?')) onForgetDevice();
+                  }}
+                  disabled={busy}
+                >
+                  Forget everyone
+                </Button>
+              )}
             </div>
           </form>
+          <p className="text-xs text-[#8d7e70] leading-relaxed">
+            Shared computer? Each person signs in once with their own token and chooses their own passcode; after that everyone picks their name here. Sessions lock
+            automatically after a period of inactivity, and <em>Sign out</em> always locks immediately.
+          </p>
         </Card>
       </div>
     );
@@ -158,7 +204,8 @@ export const SignIn: React.FC<SignInProps> = ({ onSubmit, onUnlock, onForgetDevi
                 <strong className="block text-[#24211e]">Remember me on this device with a passcode</strong>
                 <span className="text-xs text-[#6e6052] leading-relaxed">
                   Recommended. Your token is encrypted with a passcode you choose and kept on this computer, so next time you only type the passcode instead of finding and
-                  pasting the token. Use a passcode nobody else at the counter knows.
+                  pasting the token. On a shared computer each person is remembered separately under their own GitHub name — just use a passcode nobody else at the counter
+                  knows. Untick this on a computer you do not trust.
                 </span>
               </span>
             </label>
@@ -200,7 +247,7 @@ export const SignIn: React.FC<SignInProps> = ({ onSubmit, onUnlock, onForgetDevi
               <KeyRound className="w-4 h-4 text-[#c85a32]" />
               {busy ? 'Checking access…' : 'Sign in'}
             </Button>
-            {remembered && (
+            {remembered.length > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setUseDifferentToken(false)} disabled={busy}>
                 ← Back to passcode
               </Button>

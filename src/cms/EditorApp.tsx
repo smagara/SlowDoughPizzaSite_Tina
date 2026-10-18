@@ -12,7 +12,7 @@ import { Badge, Button, Card, Notice } from './components/ui';
 import { cmsConfig, repoUrl, type CmsConfig } from './config';
 import { changeSummaryMarkdown, collectionLabel, summarizeChanges } from './diff';
 import type { SubmitResult } from './documents';
-import { clearVault, openVault, saveToVault, VaultError, vaultInfo } from './tokenVault';
+import { clearVault, openVault, rememberedUsers, saveToVault, VaultError, type RememberedUser } from './tokenVault';
 import { useEditorStore } from './useEditorStore';
 
 export const TOKEN_STORAGE_KEY = 'slowdough.cms.github-token';
@@ -32,7 +32,7 @@ export interface EditorAppProps {
 
 type Session =
   | { status: 'detecting' }
-  | { status: 'signed-out'; error?: string; busy?: boolean; remembered?: { login: string } | null }
+  | { status: 'signed-out'; error?: string; busy?: boolean; remembered?: RememberedUser[]; lockedReason?: string }
   | { status: 'ready'; backend: ContentBackend; user?: GitHubUser };
 
 /**
@@ -66,7 +66,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({
   // ---- mode detection & token restore -------------------------------------------------------
   const signIn = useCallback(
     async (token: string, remember?: RememberChoice) => {
-      setSession({ status: 'signed-out', busy: true, remembered: vaultInfo() });
+      setSession({ status: 'signed-out', busy: true, remembered: rememberedUsers() });
       try {
         const client = new GitHubClient(token, doFetch);
         const user = await GitHubBackend.verifyAccess(client, config);
@@ -79,30 +79,30 @@ export const EditorApp: React.FC<EditorAppProps> = ({
       } catch (e) {
         window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
         const message = e instanceof CmsError || e instanceof VaultError ? e.message : 'Could not sign in. Please try again.';
-        setSession({ status: 'signed-out', error: message, remembered: vaultInfo() });
+        setSession({ status: 'signed-out', error: message, remembered: rememberedUsers() });
       }
     },
     [collections, config, doFetch],
   );
 
   const unlock = useCallback(
-    async (passcode: string) => {
-      setSession({ status: 'signed-out', busy: true, remembered: vaultInfo() });
+    async (login: string, passcode: string) => {
+      setSession({ status: 'signed-out', busy: true, remembered: rememberedUsers() });
       try {
-        const { token } = await openVault(passcode);
+        const { token } = await openVault(passcode, login);
         await signIn(token);
       } catch (e) {
         const message = e instanceof VaultError ? e.message : 'Could not unlock. Please try again.';
-        setSession({ status: 'signed-out', error: message, remembered: vaultInfo() });
+        setSession({ status: 'signed-out', error: message, remembered: rememberedUsers() });
       }
     },
     [signIn],
   );
 
-  const forgetDevice = useCallback(() => {
-    clearVault();
+  const forgetDevice = useCallback((login?: string) => {
+    clearVault(login);
     window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    setSession({ status: 'signed-out', remembered: null });
+    setSession({ status: 'signed-out', remembered: rememberedUsers() });
   }, []);
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({
         await signIn(saved);
         return;
       }
-      if (!cancelled) setSession({ status: 'signed-out', remembered: vaultInfo() });
+      if (!cancelled) setSession({ status: 'signed-out', remembered: rememberedUsers() });
     })();
     return () => {
       cancelled = true;
@@ -136,8 +136,40 @@ export const EditorApp: React.FC<EditorAppProps> = ({
   const signOut = () => {
     window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
     setResult(undefined);
-    setSession({ status: 'signed-out', remembered: vaultInfo() });
+    setSession({ status: 'signed-out', remembered: rememberedUsers() });
   };
+
+  // Shared-counter hygiene: lock a GitHub session after a period of inactivity. Unsaved edits are
+  // lost on lock, so the warning bar counts down the last minute.
+  const isGitHubSession = session.status === 'ready' && session.backend.kind === 'github';
+  const [idleWarning, setIdleWarning] = useState(false);
+  useEffect(() => {
+    if (!isGitHubSession || !config.idleLockMinutes) return;
+    const limit = config.idleLockMinutes * 60_000;
+    let last = Date.now();
+    const bump = () => {
+      last = Date.now();
+      setIdleWarning(false);
+    };
+    const events: Array<keyof WindowEventMap> = ['mousemove', 'keydown', 'pointerdown', 'scroll', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    const timer = window.setInterval(() => {
+      const idle = Date.now() - last;
+      if (idle >= limit) {
+        window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+        setResult(undefined);
+        setReviewing(false);
+        setIdleWarning(false);
+        setSession({ status: 'signed-out', remembered: rememberedUsers(), lockedReason: `Locked after ${config.idleLockMinutes} minutes without activity. Unsaved edits were discarded.` });
+      } else if (idle >= limit - 60_000) {
+        setIdleWarning(true);
+      }
+    }, 5_000);
+    return () => {
+      window.clearInterval(timer);
+      events.forEach((e) => window.removeEventListener(e, bump));
+    };
+  }, [isGitHubSession, config.idleLockMinutes]);
 
   const exit = () => {
     if (store.dirtyCount > 0 && !window.confirm('You have unsaved changes. Leave the editor anyway?')) return;
@@ -204,7 +236,13 @@ export const EditorApp: React.FC<EditorAppProps> = ({
         {session.status === 'detecting' && <p className="text-sm text-[#75685c]">Checking for a local Tina server…</p>}
 
         {session.status === 'signed-out' && (
-          <SignIn onSubmit={signIn} onUnlock={unlock} onForgetDevice={forgetDevice} remembered={session.remembered} error={session.error} busy={session.busy} />
+          <SignIn onSubmit={signIn} onUnlock={unlock} onForgetDevice={forgetDevice} remembered={session.remembered} lockedReason={session.lockedReason} error={session.error} busy={session.busy} />
+        )}
+
+        {idleWarning && session.status === 'ready' && (
+          <Notice tone="warn" title="Still there?">
+            This session locks in about a minute without activity. Move the mouse or press a key to stay signed in; submit or save if you have changes.
+          </Notice>
         )}
 
         {session.status === 'ready' && (

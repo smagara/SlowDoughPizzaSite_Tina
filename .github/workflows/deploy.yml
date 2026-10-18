@@ -51,11 +51,19 @@ jobs:
           VITE_GITHUB_BASE_BRANCH: main
         run: npm run build
 
-      # configure-pages is not needed: Pages is already enabled with "Source: GitHub Actions" and the
-      # site computes its own base path (BASE_PATH above), so one fewer action to keep current.
-      - uses: actions/upload-pages-artifact@v4
+      # Package the site exactly the way actions/upload-pages-artifact does (a single artifact.tar
+      # named "github-pages"), but with a current actions/upload-artifact. upload-pages-artifact
+      # pins an older, Node 20 upload-artifact internally, which is what produced the
+      # "Node.js 20 is deprecated" warning on the build job.
+      - name: Package site for GitHub Pages
+        run: tar --dereference --hard-dereference --directory dist -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
+
+      - uses: actions/upload-artifact@v5
         with:
-          path: dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     needs: build
@@ -63,6 +71,11 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      # actions/deploy-pages has not shipped a Node 24 major yet (Dependabot will open a PR when it
+      # does). Opting in explicitly runs it on Node 24 – which is what the runner already does – and
+      # records that the choice is deliberate.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4

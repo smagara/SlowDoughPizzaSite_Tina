@@ -6,7 +6,7 @@ import { LocalTinaBackend } from './backends/localTina';
 import { cmsConfig } from './config';
 import { EditorApp, TOKEN_STORAGE_KEY } from './EditorApp';
 import { createMockGitHub, SAMPLE_FILES } from '../test/mockGitHub';
-import { VAULT_STORAGE_KEY, vaultInfo } from './tokenVault';
+import { rememberedUsers, saveToVault, VAULT_STORAGE_KEY, vaultInfo } from './tokenVault';
 
 beforeEach(() => {
   vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -89,6 +89,7 @@ describe('EditorApp – GitHub review mode (production)', () => {
     // Review dialog summarises the change
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Headline')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Want to include more changes in this same request\?/)).toBeInTheDocument();
     expect(within(dialog).getByText('Fresh batch: 96-hour weekend dough')).toBeInTheDocument();
     const title = within(dialog).getByLabelText(/Title for the reviewer/) as HTMLInputElement;
     expect(title.value).toBe('Content update: Dough Announcement');
@@ -244,11 +245,11 @@ describe('EditorApp – remember this device with a passcode', () => {
     render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
     expect(await screen.findByRole('heading', { name: /Welcome back, @pizza-staff/ })).toBeInTheDocument();
     expect(screen.queryByLabelText(/GitHub personal access token/)).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText(/^Passcode$/), 'wrong-passcode');
+    await user.type(screen.getByLabelText(/^Passcode for @pizza-staff$/), 'wrong-passcode');
     await user.click(screen.getByRole('button', { name: /Unlock/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Wrong passcode/);
-    await user.clear(screen.getByLabelText(/^Passcode$/));
-    await user.type(screen.getByLabelText(/^Passcode$/), 'pizza-time-72');
+    await user.clear(screen.getByLabelText(/^Passcode for @pizza-staff$/));
+    await user.type(screen.getByLabelText(/^Passcode for @pizza-staff$/), 'pizza-time-72');
     await user.click(screen.getByRole('button', { name: /Unlock/ }));
     expect(await screen.findByText(/@pizza-staff/)).toBeInTheDocument();
     expect(await screen.findByLabelText(/^Headline/)).toBeInTheDocument();
@@ -274,9 +275,62 @@ describe('EditorApp – remember this device with a passcode', () => {
     await user.click(screen.getByRole('button', { name: /Use a different token/ }));
     expect(await screen.findByLabelText(/GitHub personal access token/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Back to passcode/ }));
-    await user.click(await screen.findByRole('button', { name: /Forget this device/ }));
+    await user.click(await screen.findByRole('button', { name: /Forget @pizza-staff/ }));
     expect(vaultInfo()).toBeNull();
     expect(await screen.findByLabelText(/GitHub personal access token/)).toBeInTheDocument();
+  });
+});
+
+describe('EditorApp – shared device', () => {
+  it('lets several people be remembered and pick their name before entering their own passcode', async () => {
+    const user = userEvent.setup();
+    const gh = createMockGitHub({ files: SAMPLE_FILES });
+    await saveToVault('github_pat_old_colleague', 'elena-pass-9', 'elena');
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    // Elena is remembered; Marco signs in with his own token + passcode
+    expect(await screen.findByRole('heading', { name: /Welcome back, @elena/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Use a different token/ }));
+    await signIn(user, gh.validToken, 'pizza-time-72');
+    await screen.findByText(/@pizza-staff/);
+    expect(rememberedUsers().map((u) => u.login)).toEqual(['pizza-staff', 'elena']);
+    await user.click(screen.getByRole('button', { name: /Sign out/ }));
+    // Now the unlock screen asks who is editing
+    expect(await screen.findByRole('heading', { name: /Who is editing\?/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '@pizza-staff' })).toHaveAttribute('aria-checked', 'true');
+    await user.click(screen.getByRole('radio', { name: '@elena' }));
+    expect(screen.getByLabelText(/Passcode for @elena/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '@pizza-staff' }));
+    await user.type(screen.getByLabelText(/Passcode for @pizza-staff/), 'pizza-time-72');
+    await user.click(screen.getByRole('button', { name: /Unlock/ }));
+    expect(await screen.findByText(/@pizza-staff/)).toBeInTheDocument();
+    // Forgetting one person keeps the other
+    await user.click(screen.getByRole('button', { name: /Sign out/ }));
+    await user.click(await screen.findByRole('button', { name: /Forget @pizza-staff/ }));
+    expect(rememberedUsers().map((u) => u.login)).toEqual(['elena']);
+    expect(await screen.findByRole('heading', { name: /Welcome back, @elena/ })).toBeInTheDocument();
+  });
+
+  it('locks a GitHub session after the configured idle time and keeps the remembered token', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const gh = createMockGitHub({ files: SAMPLE_FILES });
+      await saveToVault(gh.validToken, 'pizza-time-72', 'pizza-staff');
+      window.sessionStorage.setItem(TOKEN_STORAGE_KEY, gh.validToken);
+      render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} config={{ ...cmsConfig, idleLockMinutes: 2 }} />);
+      expect(await screen.findByText(/@pizza-staff/)).toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(70_000);
+      expect(await screen.findByText(/Still there\?/)).toBeInTheDocument();
+      fireEvent.keyDown(window, { key: 'a' }); // activity resets the clock
+      await vi.advanceTimersByTimeAsync(70_000);
+      expect(screen.queryByRole('heading', { name: /Welcome back/ })).not.toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(await screen.findByRole('heading', { name: /Welcome back, @pizza-staff/ })).toBeInTheDocument();
+      expect(screen.getByText(/Locked after 2 minutes without activity/)).toBeInTheDocument();
+      expect(window.sessionStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
+      expect(rememberedUsers()).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

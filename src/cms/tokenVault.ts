@@ -9,7 +9,9 @@
  *
  * Only the ciphertext, salt and IV go into localStorage; the passcode is never stored and the
  * token is only ever decrypted into memory (and the tab's sessionStorage) after a correct passcode.
- * Five wrong passcodes wipe the vault, so a shared shop laptop cannot be brute-forced in place.
+ * Several people can be remembered on one device (a shared shop laptop): each GitHub login has its
+ * own entry and its own passcode. Five wrong passcodes wipe that person's entry, so the vault cannot
+ * be brute-forced in place.
  *
  * Trade-off (documented in the TDD): a short passcode protects against casual access, not against
  * an attacker who copies localStorage and runs an offline guess. That is why the token itself is a
@@ -20,10 +22,11 @@
 export const VAULT_STORAGE_KEY = 'slowdough.cms.vault';
 export const VAULT_MAX_FAILURES = 5;
 export const PASSCODE_MIN_LENGTH = 6;
+/** How many people can be remembered on one device (a shared shop laptop). */
+export const VAULT_MAX_USERS = 8;
 const PBKDF2_ITERATIONS = 600_000;
 
 interface VaultRecord {
-  v: 1;
   login: string;
   salt: string; // base64
   iv: string; // base64
@@ -31,6 +34,19 @@ interface VaultRecord {
   iterations: number;
   failures: number;
   createdAt: string;
+  lastUsedAt: string;
+}
+
+/** One vault per browser profile, holding one encrypted token per GitHub login. */
+interface VaultFile {
+  v: 2;
+  users: Record<string, VaultRecord>;
+}
+
+export interface RememberedUser {
+  login: string;
+  createdAt: string;
+  lastUsedAt: string;
 }
 
 export class VaultError extends Error {
@@ -65,15 +81,26 @@ async function deriveKey(passcode: string, salt: Uint8Array, iterations: number)
   );
 }
 
-function read(storage: Storage): VaultRecord | null {
+function read(storage: Storage): VaultFile {
   try {
     const raw = storage.getItem(VAULT_STORAGE_KEY);
-    if (!raw) return null;
-    const rec = JSON.parse(raw) as VaultRecord;
-    return rec && rec.v === 1 && typeof rec.data === 'string' ? rec : null;
+    if (!raw) return { v: 2, users: {} };
+    const parsed = JSON.parse(raw) as { v?: number; users?: Record<string, VaultRecord> } & Partial<VaultRecord>;
+    if (parsed.v === 2 && parsed.users && typeof parsed.users === 'object') return { v: 2, users: parsed.users };
+    // v1 (single user) → v2
+    if (parsed.v === 1 && typeof parsed.data === 'string' && typeof parsed.login === 'string') {
+      const { v: _v, ...rec } = parsed as VaultRecord & { v: number };
+      return { v: 2, users: { [rec.login]: { ...rec, lastUsedAt: rec.lastUsedAt ?? rec.createdAt } } };
+    }
+    return { v: 2, users: {} };
   } catch {
-    return null;
+    return { v: 2, users: {} };
   }
+}
+
+function write(storage: Storage, file: VaultFile): void {
+  if (Object.keys(file.users).length === 0) storage.removeItem(VAULT_STORAGE_KEY);
+  else storage.setItem(VAULT_STORAGE_KEY, JSON.stringify(file));
 }
 
 /** Validate a passcode chosen by the user. Returns an error message or undefined. */
@@ -87,13 +114,19 @@ export function validatePasscode(passcode: string, confirm?: string): string | u
   return undefined;
 }
 
-/** Is a remembered token present on this device? Returns the GitHub login it belongs to. */
-export function vaultInfo(storage: Storage = window.localStorage): { login: string; createdAt: string } | null {
-  const rec = read(storage);
-  return rec ? { login: rec.login, createdAt: rec.createdAt } : null;
+/** Everyone remembered on this device, most recently used first. */
+export function rememberedUsers(storage: Storage = window.localStorage): RememberedUser[] {
+  return Object.values(read(storage).users)
+    .map(({ login, createdAt, lastUsedAt }) => ({ login, createdAt, lastUsedAt }))
+    .sort((a, b) => Date.parse(b.lastUsedAt) - Date.parse(a.lastUsedAt));
 }
 
-/** Encrypt the token with the passcode and remember it on this device. */
+/** Convenience: the most recently used remembered user, if any. */
+export function vaultInfo(storage: Storage = window.localStorage): RememberedUser | null {
+  return rememberedUsers(storage)[0] ?? null;
+}
+
+/** Encrypt the token with the passcode and remember it on this device under the GitHub login. */
 export async function saveToVault(token: string, passcode: string, login: string, storage: Storage = window.localStorage): Promise<void> {
   const weak = validatePasscode(passcode);
   if (weak) throw new VaultError(weak, 'weak-passcode');
@@ -101,44 +134,63 @@ export async function saveToVault(token: string, passcode: string, login: string
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveKey(passcode, salt, PBKDF2_ITERATIONS);
   const data = await subtle().encrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, enc.encode(token));
+  const now = new Date().toISOString();
+  const file = read(storage);
   const rec: VaultRecord = {
-    v: 1,
     login,
     salt: toB64(salt),
     iv: toB64(iv),
     data: toB64(data),
     iterations: PBKDF2_ITERATIONS,
     failures: 0,
-    createdAt: new Date().toISOString(),
+    createdAt: file.users[login]?.createdAt ?? now,
+    lastUsedAt: now,
   };
-  storage.setItem(VAULT_STORAGE_KEY, JSON.stringify(rec));
+  file.users[login] = rec;
+  // Keep the device tidy: drop the least recently used entries beyond the cap.
+  const logins = Object.values(file.users)
+    .sort((a, b) => Date.parse(b.lastUsedAt) - Date.parse(a.lastUsedAt))
+    .map((r) => r.login);
+  for (const stale of logins.slice(VAULT_MAX_USERS)) delete file.users[stale];
+  write(storage, file);
 }
 
 /**
- * Decrypt the remembered token. A wrong passcode counts a failure; after VAULT_MAX_FAILURES the
- * vault is wiped and the user must paste a token again.
+ * Decrypt the remembered token for a login. A wrong passcode counts a failure for that login only;
+ * after VAULT_MAX_FAILURES that login's entry is wiped and they must paste a token again.
  */
-export async function openVault(passcode: string, storage: Storage = window.localStorage): Promise<{ token: string; login: string }> {
-  const rec = read(storage);
-  if (!rec) throw new VaultError('No token is remembered on this device.', 'missing');
+export async function openVault(passcode: string, login: string, storage: Storage = window.localStorage): Promise<{ token: string; login: string }> {
+  const file = read(storage);
+  const rec = file.users[login];
+  if (!rec) throw new VaultError('No token is remembered on this device for that account.', 'missing');
   try {
     const key = await deriveKey(passcode, fromB64(rec.salt), rec.iterations);
     const plain = await subtle().decrypt({ name: 'AES-GCM', iv: fromB64(rec.iv) as BufferSource }, key, fromB64(rec.data) as BufferSource);
-    if (rec.failures) storage.setItem(VAULT_STORAGE_KEY, JSON.stringify({ ...rec, failures: 0 }));
-    return { token: dec.decode(plain), login: rec.login };
+    file.users[login] = { ...rec, failures: 0, lastUsedAt: new Date().toISOString() };
+    write(storage, file);
+    return { token: dec.decode(plain), login };
   } catch (e) {
     if (e instanceof VaultError) throw e;
     const failures = rec.failures + 1;
     if (failures >= VAULT_MAX_FAILURES) {
-      storage.removeItem(VAULT_STORAGE_KEY);
-      throw new VaultError(`Wrong passcode ${failures} times — the remembered token was erased for safety. Paste your GitHub token again to continue.`, 'wiped');
+      delete file.users[login];
+      write(storage, file);
+      throw new VaultError(`Wrong passcode ${failures} times — the remembered token for @${login} was erased for safety. Paste your GitHub token again to continue.`, 'wiped');
     }
-    storage.setItem(VAULT_STORAGE_KEY, JSON.stringify({ ...rec, failures }));
-    throw new VaultError(`Wrong passcode. ${VAULT_MAX_FAILURES - failures} attempt${VAULT_MAX_FAILURES - failures === 1 ? '' : 's'} left before the remembered token is erased.`, 'wrong-passcode');
+    file.users[login] = { ...rec, failures };
+    write(storage, file);
+    const left = VAULT_MAX_FAILURES - failures;
+    throw new VaultError(`Wrong passcode. ${left} attempt${left === 1 ? '' : 's'} left before the remembered token is erased.`, 'wrong-passcode');
   }
 }
 
-/** Forget the remembered token on this device. */
-export function clearVault(storage: Storage = window.localStorage): void {
-  storage.removeItem(VAULT_STORAGE_KEY);
+/** Forget one remembered person, or everyone (no login) on this device. */
+export function clearVault(login?: string, storage: Storage = window.localStorage): void {
+  if (!login) {
+    storage.removeItem(VAULT_STORAGE_KEY);
+    return;
+  }
+  const file = read(storage);
+  delete file.users[login];
+  write(storage, file);
 }
