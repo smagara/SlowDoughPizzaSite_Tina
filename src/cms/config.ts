@@ -16,6 +16,8 @@ export interface CmsConfig {
   mode: 'auto' | 'local' | 'github';
   /** Hash route that opens the editor, e.g. "#/edit". */
   editorHash: string;
+  /** Minutes without keyboard/mouse activity before a GitHub session locks (0 = never). */
+  idleLockMinutes: number;
 }
 
 const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {};
@@ -28,6 +30,7 @@ export const cmsConfig: CmsConfig = {
   tinaLocalUrl: env.VITE_TINA_LOCAL_URL || 'http://localhost:4001/graphql',
   mode: (env.VITE_CMS_MODE as CmsConfig['mode']) || 'auto',
   editorHash: '#/edit',
+  idleLockMinutes: Number(env.VITE_CMS_IDLE_LOCK_MINUTES ?? 30) || 0,
 };
 
 export const GITHUB_API = 'https://api.github.com';

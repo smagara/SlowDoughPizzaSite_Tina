@@ -48,7 +48,8 @@ export const ReviewDialog: React.FC<Props> = ({ backend, summary, defaultTitle, 
               <div key={`${d.collection.name}/${d.document.relativePath}`} className="rounded-xl border border-[#e2d6c7] bg-[#fffdfa] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-serif font-bold text-[#24211e]">
-                    {collectionLabel(d.collection)} · {docTitle(d.document)}
+                    {collectionLabel(d.collection)}
+                    {docTitle(d.document) !== d.document.relativePath.replace(/\.json$/, '') && ` · ${docTitle(d.document)}`}
                   </span>
                   <span className="text-[11px] font-mono uppercase tracking-wider text-[#8a4224] bg-[#f5e6dd] px-2 py-0.5 rounded">{d.action}</span>
                 </div>
@@ -80,6 +81,11 @@ export const ReviewDialog: React.FC<Props> = ({ backend, summary, defaultTitle, 
               </div>
             ))}
           </div>
+
+          <p className="text-xs text-[#6e6052] leading-relaxed" id="cms-batch-tip">
+            <strong className="text-[#24211e]">Want to include more changes in this same {isGitHub ? 'request' : 'save'}?</strong> Choose <em>Back to editing</em> — everything listed
+            above is kept — make the extra changes, then come back here. One {isGitHub ? 'Pull Request' : 'save'} can carry edits to several sections.
+          </p>
 
           {isGitHub && (
             <div className="space-y-3">
