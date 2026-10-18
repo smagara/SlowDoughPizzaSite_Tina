@@ -1,0 +1,23 @@
+digraph OAuthProxy {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=11, bgcolor="white", pad=0.3, nodesep=0.35, ranksep=0.4, splines=polyline];
+  node  [fontname="Helvetica", fontsize=9.5, style="filled,rounded", shape=box, color="#ded3c5", fillcolor="#faf7f2", penwidth=1.1, margin="0.16,0.07"];
+  edge  [fontname="Helvetica", fontsize=9, color="#6e6052", arrowsize=0.75];
+
+  subgraph cluster_b { label="Browser (GitHub Pages – unchanged code, new SignIn button)"; style="rounded,filled"; fillcolor="#fdfaf5"; color="#e2d6c7"; fontcolor="#8a4224"; fontname="Helvetica-Bold";
+    b1 [label="① Click “Sign in with GitHub”\nwindow.open(PROXY/auth)"];
+    b4 [label="④ Popup posts { token } to the opener\n(postMessage, origin-checked) and closes"];
+    b5 [label="⑤ Existing flow: GET /user + collaborator check\n→ editor (token in sessionStorage; vault optional)", fillcolor="#e4ede1", color="#6f9a62"];
+  }
+  subgraph cluster_w { label="Cloudflare Worker  auth.<domain>  (≈80 lines, holds the client secret)"; style="rounded,filled"; fillcolor="#eef2f7"; color="#9fb3c8"; fontcolor="#27435f"; fontname="Helvetica-Bold";
+    w1 [label="GET /auth\nstate = HMAC(secret, nonce·timestamp)\n302 → github.com/login/oauth/authorize"];
+    w3 [label="GET /callback?code&state\nverify state (≤10 min) · verify redirect_uri\nPOST github.com/login/oauth/access_token (client_secret)\n→ tiny HTML page that calls postMessage"];
+  }
+  subgraph cluster_g { label="GitHub"; style="rounded,filled"; fillcolor="#f7f4ee"; color="#e2d6c7"; fontcolor="#8a4224"; fontname="Helvetica-Bold";
+    g2 [label="② Staff sign in on github.com\n(password / passkey / 2FA)\nauthorise the Slow Dough app once"];
+    g3 [label="③ Redirect to PROXY/callback?code=…&state=…"];
+    api [label="api.github.com\n(contents · git data · pulls)", fillcolor="#f2ebdf"];
+  }
+
+  b1 -> w1 -> g2 -> g3 -> w3 -> b4 -> b5;
+  b5 -> api [label="  same REST calls as today", style=dashed];
+}
