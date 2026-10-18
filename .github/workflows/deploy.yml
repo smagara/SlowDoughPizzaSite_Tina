@@ -2,6 +2,9 @@
 #
 # Content changes arrive on `main` exclusively through reviewed Pull Requests opened by the staff
 # editor (branches `cms/<user>/<timestamp>`), so a merge == an approved publish.
+#
+# Action versions: Dependabot (.github/dependabot.yml) opens a PR whenever a newer major of any
+# action below is published (e.g. Node 24 runtimes), so these pins never silently go stale.
 name: Deploy to GitHub Pages
 
 on:
@@ -23,11 +26,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -48,9 +51,9 @@ jobs:
           VITE_GITHUB_BASE_BRANCH: main
         run: npm run build
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
+      # configure-pages is not needed: Pages is already enabled with "Source: GitHub Actions" and the
+      # site computes its own base path (BASE_PATH above), so one fewer action to keep current.
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 

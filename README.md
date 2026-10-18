@@ -46,7 +46,10 @@ main → owner reviews (CI validates content) → merge → GitHub Action builds
 ```
 
 Nothing is ever written to `main` by the editor. Deployment is [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml);
-PR checks are [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+PR checks are [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Both run on Node 24 and use the
+Node-24 majors of the official actions; [`.github/dependabot.yml`](.github/dependabot.yml) opens a PR
+whenever a newer major of an action is published, so "Node.js 20 is deprecated" style warnings are
+fixed by merging that PR rather than by hand-editing YAML.
 
 ### One-time repository setup
 
@@ -64,6 +67,23 @@ PR checks are [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 Copy `.env.example` to `.env` to override defaults (owner/repo/base branch/branch prefix/mode). The
 deploy workflow sets `BASE_PATH=/<repo>/` so asset URLs work under `https://<owner>.github.io/<repo>/`.
+
+### Signing in without pasting the token every time
+
+On the sign-in screen, **Remember me on this device with a passcode** (ticked by default) encrypts the
+token in the browser (PBKDF2-SHA-256 → AES-256-GCM, WebCrypto) and stores only the ciphertext in
+`localStorage`. On the next visit staff type their passcode instead of the token. Five wrong passcodes
+erase the remembered token; *Forget this device* erases it on demand. The token is only ever remembered
+after it has been verified as belonging to a collaborator with write access. See the TDD (D17) for the
+security trade-offs and why a "Sign in with GitHub" proxy remains the long-term recommendation.
+
+### Edit screens
+
+Each screen opens with the most-used fields visible and context fields folded into one-line
+summaries (e.g. *Section heading & intro* on the menu, *Author, date & illustration* on a post).
+Menu categories, dishes and essay sections are collapsed with a preview line; use **Expand all /
+Collapse all** or click a row. Anything with a validation error stays open until it is fixed. The
+layout is defined in `src/cms/layout.ts`.
 
 ### Blog posts and the Draft flag
 

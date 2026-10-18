@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Collection, TinaField } from 'tinacms';
-import { EyeOff, FilePlus2, RotateCcw, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, EyeOff, FilePlus2, RotateCcw, Trash2 } from 'lucide-react';
+import { groupsFor, type FieldGroup } from '../layout';
 import { collectionLabel, docTitle } from '../diff';
 import type { EditorStore } from '../useEditorStore';
 import { slugify, validateSlug } from '../validation';
@@ -29,26 +30,74 @@ const descriptionFor = (c: Collection): string => {
   }
 };
 
-/** Renders a whole document as a form. */
+/** One collapsible panel of fields. Opens itself when any of its fields has a validation error. */
+const GroupPanel: React.FC<{
+  group: FieldGroup;
+  collection: Collection;
+  values: Record<string, unknown>;
+  errors: Record<string, string>;
+  onChange: (v: Record<string, unknown>) => void;
+  single: boolean;
+}> = ({ group, collection, values, errors, onChange, single }) => {
+  const errorCount = Object.keys(errors).filter((path) => group.fields.some((f) => path === f || path.startsWith(`${f}.`) || path.startsWith(`${f}[`))).length;
+  const [wantOpen, setWantOpen] = useState(!group.collapsed || single);
+  // A group with validation errors cannot be collapsed – nothing that needs fixing is ever hidden –
+  // and once opened that way it stays open after the fix so the field being typed in never vanishes.
+  const open = wantOpen || errorCount > 0;
+  useEffect(() => {
+    if (errorCount > 0) setWantOpen(true);
+  }, [errorCount]);
+  const setOpen = (fn: (o: boolean) => boolean) => setWantOpen(fn);
+  const fields = (collection.fields as TinaField[]).filter((f) => group.fields.includes(f.name));
+  const body = (
+    <div className="space-y-5">
+      {fields.map((field) => (
+        <FieldRenderer key={field.name} field={field as AnyField} value={values[field.name]} onChange={(v) => onChange({ ...values, [field.name]: v })} path={field.name} errors={errors} />
+      ))}
+    </div>
+  );
+  if (single) return <Card className="p-5 sm:p-7">{body}</Card>;
+  const summary = !open && group.summary ? group.summary(values) : undefined;
+  return (
+    <Card className={open ? '' : 'bg-[#f5ede3]/60'} data-testid={`group-${group.id}`}>
+      <button
+        type="button"
+        className="w-full flex items-center gap-3 px-5 sm:px-7 py-4 text-left cursor-pointer"
+        onClick={() => {
+          if (open && errorCount > 0) return; // cannot hide a group that needs fixing
+          setOpen((o) => !o);
+        }}
+        aria-expanded={open}
+        id={`cms-group-${group.id}`}
+      >
+        {open ? <ChevronUp className="w-4 h-4 text-[#8d7e70] shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#8d7e70] shrink-0" />}
+        <span className="font-serif text-lg font-bold text-[#24211e]">{group.label}</span>
+        {summary && <span className="text-sm text-[#6e6052] truncate flex-1 min-w-0">{summary}</span>}
+        {errorCount > 0 && <Badge tone="accent">{errorCount} to fix</Badge>}
+        {!open && !summary && <span className="flex-1" />}
+        {!open && <span className="text-xs text-[#8d7e70] shrink-0">Click to edit</span>}
+      </button>
+      {open && <div className="px-5 sm:px-7 pb-6 border-t border-[#eee5d8] pt-5">{body}</div>}
+    </Card>
+  );
+};
+
+/** Renders a whole document as a set of collapsible groups (see src/cms/layout.ts). */
 const DocumentForm: React.FC<{ collection: Collection; values: Record<string, unknown>; errors: Record<string, string>; onChange: (v: Record<string, unknown>) => void }> = ({
   collection,
   values,
   errors,
   onChange,
-}) => (
-  <div className="space-y-5">
-    {(collection.fields as TinaField[]).map((field) => (
-      <FieldRenderer
-        key={field.name}
-        field={field as AnyField}
-        value={values[field.name]}
-        onChange={(v) => onChange({ ...values, [field.name]: v })}
-        path={field.name}
-        errors={errors}
-      />
-    ))}
-  </div>
-);
+}) => {
+  const groups = groupsFor(collection.name, (collection.fields as TinaField[]).map((f) => f.name));
+  return (
+    <div className="space-y-4">
+      {groups.map((g) => (
+        <GroupPanel key={g.id} group={g} collection={collection} values={values} errors={errors} onChange={onChange} single={groups.length === 1} />
+      ))}
+    </div>
+  );
+};
 
 export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
   const docs = store.state.docs[collection.name] ?? [];
@@ -80,9 +129,7 @@ export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
             )
           }
         />
-        <Card className="p-5 sm:p-7">
-          <DocumentForm collection={collection} values={doc.draft.values} errors={errors} onChange={(v) => store.update(collection.name, doc.draft.relativePath, v)} />
-        </Card>
+        <DocumentForm collection={collection} values={doc.draft.values} errors={errors} onChange={(v) => store.update(collection.name, doc.draft.relativePath, v)} />
       </div>
     );
   }
@@ -140,9 +187,7 @@ export const CollectionEditor: React.FC<Props> = ({ collection, store }) => {
             <EyeOff className="w-3.5 h-3.5" /> Visible to visitors once saved/approved. Tick “Draft (hide from the website)” below to hide it.
           </p>
         )}
-        <Card className="p-5 sm:p-7">
-          <DocumentForm collection={collection} values={current.draft.values} errors={errors} onChange={(v) => store.update(collection.name, current.draft.relativePath, v)} />
-        </Card>
+        <DocumentForm collection={collection} values={current.draft.values} errors={errors} onChange={(v) => store.update(collection.name, current.draft.relativePath, v)} />
       </div>
     );
   }

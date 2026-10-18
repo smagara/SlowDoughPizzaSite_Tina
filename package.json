@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tinacms dev --noTelemetry -c \"vite --port=3000 --host=0.0.0.0\"",
     "dev:site": "vite --port=3000 --host=0.0.0.0",

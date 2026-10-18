@@ -6,9 +6,11 @@ import { LocalTinaBackend } from './backends/localTina';
 import { cmsConfig } from './config';
 import { EditorApp, TOKEN_STORAGE_KEY } from './EditorApp';
 import { createMockGitHub, SAMPLE_FILES } from '../test/mockGitHub';
+import { VAULT_STORAGE_KEY, vaultInfo } from './tokenVault';
 
 beforeEach(() => {
   vi.spyOn(window, 'confirm').mockReturnValue(true);
+  window.localStorage.clear();
 });
 
 /** Routes GitHub calls to the mock and makes the local Tina probe fail (production behaviour). */
@@ -20,8 +22,14 @@ function productionFetch(gh: ReturnType<typeof createMockGitHub>): typeof fetch 
   }) as typeof fetch;
 }
 
-async function signIn(user: ReturnType<typeof userEvent.setup>, token: string) {
+async function signIn(user: ReturnType<typeof userEvent.setup>, token: string, passcode?: string) {
   await user.type(await screen.findByLabelText(/GitHub personal access token/i), token);
+  if (passcode) {
+    await user.type(screen.getByLabelText(/Choose a passcode/), passcode);
+    await user.type(screen.getByLabelText(/Repeat passcode/), passcode);
+  } else {
+    await user.click(screen.getByLabelText(/Remember me on this device/));
+  }
   await user.click(screen.getByRole('button', { name: /^Sign in$/ }));
 }
 
@@ -210,6 +218,131 @@ describe('EditorApp – GitHub review mode (production)', () => {
     await user.click(within(dialog).getByRole('button', { name: /Open Pull Request/ }));
     await screen.findByText(/Pull Request #1 opened/);
     expect(String(gh.state.pulls[0].body)).toMatch(/Margherita Verace D\.O\.P\. — \$21 › Price \(USD\): 19 → 21/);
+  });
+});
+
+describe('EditorApp – remember this device with a passcode', () => {
+  it('remembers a verified token encrypted with a passcode, then unlocks with the passcode on the next visit', async () => {
+    const user = userEvent.setup();
+    const gh = createMockGitHub({ files: SAMPLE_FILES });
+    const { unmount } = render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    // the sign-in button stays disabled until a matching passcode is entered
+    await user.type(await screen.findByLabelText(/GitHub personal access token/i), gh.validToken);
+    expect(screen.getByRole('button', { name: /^Sign in$/ })).toBeDisabled();
+    await user.type(screen.getByLabelText(/Choose a passcode/), 'pizza-time-72');
+    await user.type(screen.getByLabelText(/Repeat passcode/), 'pizza-time-7');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/do not match/);
+    await user.type(screen.getByLabelText(/Repeat passcode/), '2');
+    await user.click(screen.getByRole('button', { name: /^Sign in$/ }));
+    expect(await screen.findByText(/@pizza-staff/)).toBeInTheDocument();
+    expect(vaultInfo()).toMatchObject({ login: 'pizza-staff' });
+    expect(window.localStorage.getItem(VAULT_STORAGE_KEY)).not.toContain(gh.validToken);
+
+    // New visit: session gone, vault present → passcode screen instead of token paste
+    unmount();
+    window.sessionStorage.clear();
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    expect(await screen.findByRole('heading', { name: /Welcome back, @pizza-staff/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/GitHub personal access token/)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/^Passcode$/), 'wrong-passcode');
+    await user.click(screen.getByRole('button', { name: /Unlock/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Wrong passcode/);
+    await user.clear(screen.getByLabelText(/^Passcode$/));
+    await user.type(screen.getByLabelText(/^Passcode$/), 'pizza-time-72');
+    await user.click(screen.getByRole('button', { name: /Unlock/ }));
+    expect(await screen.findByText(/@pizza-staff/)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/^Headline/)).toBeInTheDocument();
+  });
+
+  it('does not remember a token that failed authorisation', async () => {
+    const user = userEvent.setup();
+    const gh = createMockGitHub({ files: SAMPLE_FILES, permission: 'read' });
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    await signIn(user, gh.validToken, 'pizza-time-72');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not a collaborator/);
+    expect(vaultInfo()).toBeNull();
+  });
+
+  it('can forget the device or fall back to pasting a different token', async () => {
+    const user = userEvent.setup();
+    const gh = createMockGitHub({ files: SAMPLE_FILES });
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    await signIn(user, gh.validToken, 'pizza-time-72');
+    await screen.findByText(/@pizza-staff/);
+    await user.click(screen.getByRole('button', { name: /Sign out/ }));
+    expect(await screen.findByRole('heading', { name: /Welcome back/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Use a different token/ }));
+    expect(await screen.findByLabelText(/GitHub personal access token/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Back to passcode/ }));
+    await user.click(await screen.findByRole('button', { name: /Forget this device/ }));
+    expect(vaultInfo()).toBeNull();
+    expect(await screen.findByLabelText(/GitHub personal access token/)).toBeInTheDocument();
+  });
+});
+
+describe('EditorApp – collapsible layout', () => {
+  it('opens the menu with the heading group collapsed (summary shown) and categories visible', async () => {
+    const user = userEvent.setup();
+    const gh = createMockGitHub({ files: SAMPLE_FILES });
+    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, gh.validToken);
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    await user.click(await screen.findByRole('button', { name: 'Daily Menu' }));
+    const heading = await screen.findByRole('button', { name: /Section heading & intro/ });
+    expect(heading).toHaveAttribute('aria-expanded', 'false');
+    expect(heading).toHaveTextContent('“Our Daily Menu”');
+    expect(screen.queryByLabelText(/Section heading/)).not.toBeInTheDocument();
+    expect(screen.getByText('Menu categories & dishes')).toBeInTheDocument();
+    await user.click(heading);
+    expect(await screen.findByLabelText(/Section heading/)).toHaveValue('Our Daily Menu');
+  });
+
+  it('collapses list items by default, offers expand/collapse all, and auto-opens items with errors', async () => {
+    const user = userEvent.setup();
+    const menu = JSON.parse(SAMPLE_FILES[1].content);
+    menu.categories[0].items.push({ ...menu.categories[0].items[0], id: 'marinara', name: 'Marinara', price: 16 });
+    menu.categories[0].items.push({ ...menu.categories[0].items[0], id: 'bufalina', name: 'Bufalina', price: 23 });
+    const gh = createMockGitHub({ files: [SAMPLE_FILES[0], { path: 'content/menu/menu.json', content: JSON.stringify(menu, null, 2) + '\n' }, SAMPLE_FILES[2], SAMPLE_FILES[3]] });
+    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, gh.validToken);
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    await user.click(await screen.findByRole('button', { name: 'Daily Menu' }));
+    // three items → all collapsed, with a compact preview and an Expand all button
+    const item = await screen.findByRole('button', { name: /^Marinara — \$16/ });
+    expect(item).toHaveAttribute('aria-expanded', 'false');
+    expect(item).toHaveTextContent('Tomato, mozzarella, basil.');
+    expect(screen.queryByLabelText(/Price \(USD\)/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Expand all Items/ }));
+    expect(screen.getAllByLabelText(/Price \(USD\)/)).toHaveLength(3);
+    await user.click(screen.getByRole('button', { name: /Collapse all Items/ }));
+    expect(screen.queryByLabelText(/Price \(USD\)/)).not.toBeInTheDocument();
+    // an error inside a collapsed item opens it
+    await user.click(item);
+    const price = screen.getByLabelText(/Price \(USD\)/);
+    fireEvent.change(price, { target: { value: '-1' } });
+    await user.click(screen.getByRole('button', { name: /^Marinara — \$-1/ })); // try to collapse it again
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Marinara — \$-1/ })).toHaveAttribute('aria-expanded', 'true'));
+    expect(screen.getAllByText('needs attention').length).toBeGreaterThan(0); // item and its parent category
+    // fixing the error keeps the item open (the field being edited never disappears)
+    fireEvent.change(screen.getByLabelText(/Price \(USD\)/), { target: { value: '17' } });
+    await waitFor(() => expect(screen.queryByText('needs attention')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /^Marinara — \$17/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('opens the post metadata group automatically when a required field is missing', async () => {
+    const user = userEvent.setup();
+    const gh = createMockGitHub({ files: SAMPLE_FILES });
+    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, gh.validToken);
+    render(<EditorApp fetchImpl={productionFetch(gh)} isDev={false} />);
+    await user.click(await screen.findByRole('button', { name: 'Blog Posts' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    const meta = await screen.findByRole('button', { name: /Author, date & illustration/ });
+    expect(meta).toHaveAttribute('aria-expanded', 'false');
+    expect(meta).toHaveTextContent('Marco Bellini (Head Baker) · September 14, 2026');
+    await user.click(meta);
+    const author = screen.getByLabelText('Author *');
+    await user.clear(author);
+    await user.click(meta); // try to collapse while it has an error
+    await waitFor(() => expect(meta).toHaveAttribute('aria-expanded', 'true'));
+    expect(meta).toHaveTextContent('1 to fix');
   });
 });
 

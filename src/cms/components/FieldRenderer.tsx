@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { TinaField } from 'tinacms';
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { LIST_ITEMS_OPEN_BY_DEFAULT_UP_TO } from '../layout';
 import { slugify } from '../validation';
 import { Button, FieldShell, inputClass } from './ui';
 
@@ -254,8 +255,22 @@ const ObjectList: React.FC<{
   label: string;
   error?: string;
 }> = ({ field, items, onChange, path, errors, depth, label, error }) => {
-  const [open, setOpen] = useState<Record<number, boolean>>(() => (items.length <= 3 ? Object.fromEntries(items.map((_, i) => [i, true])) : {}));
+  // Items start collapsed (only a lone item opens) so long menus stay short; an item with a
+  // validation error is always shown open so it can never be hidden from the person fixing it.
+  const [open, setOpen] = useState<Record<number, boolean>>(() =>
+    items.length <= LIST_ITEMS_OPEN_BY_DEFAULT_UP_TO ? Object.fromEntries(items.map((_, i) => [i, true])) : {},
+  );
   const hasError = (i: number) => Object.keys(errors).some((k) => k.startsWith(`${path}[${i}]`));
+  const isItemOpen = (i: number) => !!open[i] || hasError(i);
+  // Remember items that were opened by an error so they stay open once the error is fixed.
+  const erroredKey = items.map((_, i) => (hasError(i) ? '1' : '0')).join('');
+  useEffect(() => {
+    if (erroredKey.includes('1')) {
+      setOpen((o) => ({ ...o, ...Object.fromEntries(erroredKey.split('').flatMap((c, i) => (c === '1' ? [[i, true]] : []))) }));
+    }
+  }, [erroredKey]);
+  const allOpen = items.length > 0 && items.every((_, i) => isItemOpen(i));
+  const setAll = (value: boolean) => setOpen(Object.fromEntries(items.map((_, i) => [i, value])));
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= items.length) return;
@@ -277,9 +292,16 @@ const ObjectList: React.FC<{
         <span className="text-xs font-semibold uppercase tracking-wider text-[#6e6052]">
           {label} <span className="font-normal normal-case text-[#9c8f82]">({items.length})</span>
         </span>
-        <Button size="sm" variant="secondary" onClick={add}>
-          <Plus className="w-3.5 h-3.5" /> Add {singular(label)}
-        </Button>
+        <div className="flex items-center gap-2">
+          {items.length > 1 && (
+            <Button size="sm" variant="ghost" onClick={() => setAll(!allOpen)} aria-label={`${allOpen ? 'Collapse' : 'Expand'} all ${label}`}>
+              {allOpen ? 'Collapse all' : 'Expand all'}
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={add}>
+            <Plus className="w-3.5 h-3.5" /> Add {singular(label)}
+          </Button>
+        </div>
       </div>
       {error && (
         <p role="alert" className="text-xs font-medium text-[#a84d2a]">
@@ -288,20 +310,24 @@ const ObjectList: React.FC<{
       )}
       <div className="space-y-2">
         {items.map((item, i) => {
-          const isOpen = !!open[i];
+          const isOpen = isItemOpen(i);
           const itemPath = `${path}[${i}]`;
           return (
             <div key={i} className={`rounded-xl border ${hasError(i) ? 'border-[#c85a32]' : 'border-[#e2d6c7]'} ${depth > 0 ? 'bg-[#fffdfa]' : 'bg-[#faf7f2]'}`}>
               <div className="flex items-center gap-2 px-3 py-2">
                 <button
                   type="button"
-                  className="flex-1 flex items-center gap-2 text-left cursor-pointer"
-                  onClick={() => setOpen((o) => ({ ...o, [i]: !isOpen }))}
+                  className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer"
+                  onClick={() => {
+                    if (isOpen && hasError(i)) return; // cannot hide an item that needs fixing
+                    setOpen((o) => ({ ...o, [i]: !isOpen }));
+                  }}
                   aria-expanded={isOpen}
                 >
                   {isOpen ? <ChevronUp className="w-4 h-4 text-[#8d7e70]" /> : <ChevronDown className="w-4 h-4 text-[#8d7e70]" />}
-                  <span className={`font-serif font-bold ${depth > 0 ? 'text-sm' : 'text-base'} text-[#24211e]`}>{itemLabel(field, item, i)}</span>
-                  {hasError(i) && <span className="text-[11px] font-mono text-[#a84d2a]">needs attention</span>}
+                  <span className={`font-serif font-bold ${depth > 0 ? 'text-sm' : 'text-base'} text-[#24211e] shrink-0`}>{itemLabel(field, item, i)}</span>
+                  {!isOpen && <span className="text-xs text-[#8d7e70] truncate min-w-0">{itemPreview(item)}</span>}
+                  {hasError(i) && <span className="text-[11px] font-mono text-[#a84d2a] shrink-0">needs attention</span>}
                 </button>
                 <Button size="sm" variant="ghost" aria-label={`Move ${itemLabel(field, item, i)} up`} disabled={i === 0} onClick={() => move(i, i - 1)}>
                   ↑
@@ -341,6 +367,16 @@ const ObjectList: React.FC<{
       </div>
     </div>
   );
+};
+
+/** Short secondary text for a collapsed list item. */
+const itemPreview = (item: Record<string, unknown>): string => {
+  for (const k of ['description', 'subtitle', 'hours', 'statusNote', 'excerpt']) {
+    if (typeof item[k] === 'string' && item[k]) return String(item[k]);
+  }
+  if (Array.isArray(item.items)) return `${item.items.length} item${item.items.length === 1 ? '' : 's'}`;
+  if (Array.isArray(item.paragraphs)) return `${item.paragraphs.length} paragraph${item.paragraphs.length === 1 ? '' : 's'}`;
+  return '';
 };
 
 const singular = (label: string) => {
