@@ -183,6 +183,25 @@
           "isVegan": true
         }
       ]
+    },
+    {
+      "id": "new-category-alcohol",
+      "title": "Alcoholic Beverages",
+      "subtitle": "The good stuff",
+      "items": [
+        {
+          "id": "buffalo-trace-w97j",
+          "name": "Buffalo Trace Whiskey",
+          "italianName": "Bufalo traccia",
+          "description": "Good sipping Bourbon",
+          "price": 12.88,
+          "tags": [
+            "Bourbon"
+          ],
+          "isVegetarian": false,
+          "isVegan": true
+        }
+      ]
     }
   ]
 }
