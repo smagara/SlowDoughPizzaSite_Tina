@@ -1,8 +1,9 @@
 import React from 'react';
-import { STORE_HOURS } from '../data/pizzaShopData';
+import { getHours } from '../content';
 import { Clock, MapPin, Phone, Mail, Sparkles, AlertCircle } from 'lucide-react';
 
 export const HoursAndLocation: React.FC = () => {
+  const STORE_HOURS = getHours().schedule;
   return (
     <section id="hours" className="py-16 sm:py-24 border-b border-[#e6ddd2]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

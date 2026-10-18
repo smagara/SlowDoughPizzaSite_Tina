@@ -1,0 +1,40 @@
+digraph Architecture {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=11, bgcolor="white", pad=0.3, nodesep=0.4, ranksep=0.7, compound=true];
+  node  [fontname="Helvetica", fontsize=10, style="filled,rounded", shape=box, color="#ded3c5", fillcolor="#faf7f2", penwidth=1.2, margin="0.18,0.08"];
+  edge  [fontname="Helvetica", fontsize=9, color="#6e6052", arrowsize=0.8];
+
+  subgraph cluster_repo {
+    label="Git repository"; style="rounded,filled"; fillcolor="#f7f4ee"; color="#e2d6c7"; fontcolor="#8a4224"; fontname="Helvetica-Bold";
+    content [label="content/**/*.json\n(announcement, menu, posts, hours)", fillcolor="#f5e6dd"];
+    schema  [label="tina/schema.ts\nCollections · fields · ui.validate()", fillcolor="#fff8ee"];
+    tinacfg [label="tina/config.ts\ndefineConfig({ schema })"];
+    site    [label="src/components + src/content\n(React site, imports JSON at build)"];
+    editor  [label="src/cms/*\nStaff editor (schema-driven form,\nvalidation, backends)"];
+    wf      [label=".github/workflows\nci.yml · deploy.yml", fillcolor="#eef2f7", color="#9fb3c8"];
+  }
+
+  subgraph cluster_local {
+    label="Local edit mode (npm run dev)"; style="rounded,filled"; fillcolor="#fdfaf5"; color="#e2d6c7"; fontcolor="#8a4224"; fontname="Helvetica-Bold";
+    tinadev [label="tinacms dev\nlocal GraphQL API :4001\n+ Tina admin /admin/index.html", fillcolor="#fbeee3"];
+    vite    [label="Vite dev server :3000\n(HMR on content changes)"];
+  }
+
+  subgraph cluster_prod {
+    label="Production (static hosting)"; style="rounded,filled"; fillcolor="#f3f6f1"; color="#c9dcc1"; fontcolor="#335928"; fontname="Helvetica-Bold";
+    pages   [label="GitHub Pages\nhttps://smagara.github.io/SlowDoughPizzaSite_Tina/", fillcolor="#e4ede1", color="#6f9a62"];
+    ghapi   [label="GitHub REST API\napi.github.com\n(auth, contents, git data, pulls)", fillcolor="#eef2f7", color="#9fb3c8"];
+  }
+
+  schema -> tinacfg;
+  schema -> editor  [label="fields + validation"];
+  schema -> site    [style=dashed, label="types mirror schema"];
+  content -> site   [label="bundled at build"];
+  tinadev -> content [label="reads/writes files", dir=both];
+  tinacfg -> tinadev;
+  editor -> tinadev [label="local mode:\nGraphQL update/createDocument"];
+  vite -> site;
+  wf -> pages [label="deploy on merge to main"];
+  site -> pages [style=dashed, label="vite build → dist/"];
+  editor -> ghapi [label="GitHub mode:\nverify collaborator,\nbranch + commit + PR"];
+  ghapi -> content [label="PR merged → main", style=dashed];
+}

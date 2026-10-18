@@ -1,28 +1,55 @@
 {
-  "name": "react-example",
+  "name": "slow-dough-pizza-site",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "tinacms dev --noTelemetry -c \"vite --port=3000 --host=0.0.0.0\"",
+    "dev:site": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "build:tina": "tinacms build --noTelemetry -c \"vite build\"",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "clean": "node -e \"for (const d of ['dist','coverage','public/admin','tina/__generated__']) require('fs').rmSync(d, { recursive: true, force: true })\"",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "validate:content": "vitest run src/cms/content.test.ts",
+    "tina:audit": "tinacms audit --noTelemetry",
+    "check": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
-    "@vitejs/plugin-react": "^6.1.1",
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
-    "react-dom": "^19.0.1",
-    "vite": "^8.3.0"
+    "react-dom": "^19.0.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@tinacms/cli": "^3.1.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.0.2",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2"
+    "tinacms": "^3.14.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.2"
+  },
+  "overrides": {
+    "react-final-form": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
+  },
+  "allowScripts": {
+    "better-sqlite3": true,
+    "esbuild": true,
+    "core-js": false
   }
 }

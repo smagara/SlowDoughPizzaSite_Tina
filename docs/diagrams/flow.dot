@@ -1,0 +1,47 @@
+digraph PublishFlow {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=11, bgcolor="white", pad=0.3, nodesep=0.35, ranksep=0.45, splines=polyline];
+  node  [fontname="Helvetica", fontsize=10, style="filled,rounded", shape=box, color="#ded3c5", fillcolor="#faf7f2", penwidth=1.2, margin="0.18,0.08"];
+  edge  [fontname="Helvetica", fontsize=9, color="#6e6052", arrowsize=0.8];
+
+  subgraph cluster_staff {
+    label="1. Pizzeria staff (browser on GitHub Pages)"; style="rounded,filled"; fillcolor="#fdfaf5"; color="#e2d6c7"; fontcolor="#8a4224"; fontname="Helvetica-Bold";
+    start   [label="Open hidden footer link\n#/edit", shape=ellipse, fillcolor="#f0e7dc"];
+    signin  [label="Sign in with GitHub\nfine-grained token"];
+    verify  [label="Editor calls GitHub API:\nGET /user\nGET /repos/:r/collaborators/:u/permission", shape=diamond, fillcolor="#fff8ee", margin="0.05,0.02"];
+    denied  [label="Access denied\n(not a collaborator with write)", fillcolor="#fbeae3", color="#c85a32"];
+    load    [label="Load content JSON\nfrom branch main"];
+    edit    [label="Edit Announcement / Menu /\nBlog Posts / Hours in site-styled form"];
+    validate[label="Client-side validation\n(Tina schema rules: no < >, no script URLs,\nlengths, prices, dates, ids)", shape=diamond, fillcolor="#fff8ee", margin="0.05,0.02"];
+    review  [label="Review & submit:\nplain-English change summary"];
+  }
+
+  subgraph cluster_github {
+    label="2. GitHub (repository smagara/SlowDoughPizzaSite_Tina)"; style="rounded,filled"; fillcolor="#f7f4ee"; color="#e2d6c7"; fontcolor="#8a4224"; fontname="Helvetica-Bold";
+    commit  [label="Git Data API:\ncreate tree + commit on top of main"];
+    branch  [label="Create feature branch\ncms/<user>/<yyyymmdd-hhmmss>\n(never main)", fillcolor="#f5e6dd"];
+    pr      [label="Open Pull Request → main\n(title, field-level summary, reviewer checklist)", fillcolor="#f5e6dd"];
+    ci      [label="GitHub Action: CI\nlint · content validation · tests · build", shape=box, fillcolor="#eef2f7", color="#9fb3c8"];
+    owner   [label="Owner reviews PR\n(CODEOWNERS auto-request)", shape=diamond, fillcolor="#fff8ee", margin="0.05,0.02"];
+    reject  [label="Request changes / close\n(nothing published)", fillcolor="#fbeae3", color="#c85a32"];
+    merge   [label="Approve & merge to main", fillcolor="#e4ede1", color="#6f9a62"];
+  }
+
+  subgraph cluster_deploy {
+    label="3. Automatic deployment"; style="rounded,filled"; fillcolor="#f3f6f1"; color="#c9dcc1"; fontcolor="#335928"; fontname="Helvetica-Bold";
+    deploy  [label="GitHub Action: Deploy to GitHub Pages\nnpm ci → lint → test → vite build (BASE_PATH=/repo/)\n→ upload artifact → deploy-pages", fillcolor="#eef2f7", color="#9fb3c8"];
+    live    [label="Website updated\nhttps://smagara.github.io/SlowDoughPizzaSite_Tina/", shape=ellipse, fillcolor="#e4ede1", color="#6f9a62"];
+  }
+
+  start -> signin -> verify;
+  verify -> denied [label="  no write access", color="#c85a32", fontcolor="#c85a32"];
+  verify -> load   [label="  write / maintain / admin"];
+  load -> edit -> validate;
+  validate -> edit [label="  errors shown inline,\n  submit disabled", color="#c85a32", fontcolor="#c85a32"];
+  validate -> review [label="  valid"];
+  review -> commit [label="  Open Pull Request"];
+  commit -> branch -> pr -> ci -> owner;
+  owner -> reject [label="  changes needed", color="#c85a32", fontcolor="#c85a32"];
+  owner -> merge  [label="  approved"];
+  merge -> deploy [label="  push to main triggers workflow"];
+  deploy -> live;
+}

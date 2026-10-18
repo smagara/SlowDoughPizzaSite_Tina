@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowUp } from 'lucide-react';
+import { cmsConfig } from '../cms/config';
 
 export const Footer: React.FC = () => {
   const scrollToTop = () => {
@@ -53,6 +54,20 @@ export const Footer: React.FC = () => {
           </p>
           <p>
             © {new Date().getFullYear()} Slow Dough Pizza Co. All dough aged with patience.
+            {/*
+              Non-displayed staff link: opens the CMS editor (#/edit). It is visually hidden
+              (transparent, 1px) but stays in the tab order so staff can reach it with the keyboard,
+              and it gains visibility on hover/focus so trained staff can find it in the corner.
+            */}
+            <a
+              href={cmsConfig.editorHash}
+              id="staff-editor-link"
+              aria-label="Staff content editor"
+              title="Staff content editor"
+              className="ml-2 inline-block opacity-0 hover:opacity-100 focus:opacity-100 focus:outline-none text-[#8c8072] hover:text-[#faf8f5] transition-opacity select-none"
+            >
+              ✎ Staff
+            </a>
           </p>
         </div>
       </div>

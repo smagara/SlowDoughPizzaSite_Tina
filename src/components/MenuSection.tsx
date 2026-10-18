@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { MENU_CATEGORIES } from '../data/pizzaShopData';
+import { getMenu } from '../content';
 import { Leaf, Info } from 'lucide-react';
 
 export const MenuSection: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const menu = getMenu();
+  const MENU_CATEGORIES = menu.categories;
 
   const filteredCategories = selectedCategory === 'all'
     ? MENU_CATEGORIES
@@ -14,16 +16,19 @@ export const MenuSection: React.FC = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <span className="text-xs font-mono font-semibold uppercase tracking-widest text-[#c85a32]">
-            Seasonal Artisanal Selections
-          </span>
+          {menu.eyebrow && (
+            <span className="text-xs font-mono font-semibold uppercase tracking-widest text-[#c85a32]">
+              {menu.eyebrow}
+            </span>
+          )}
           <h2 className="mt-2 font-serif text-3xl sm:text-4xl font-bold text-[#24211e]">
-            Our Daily Menu
+            {menu.title}
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-[#615448]">
-            Every pizza is an authentic 12-inch Neapolitan pie crafted from 72-hour slow-fermented dough, 
-            stretched gently by hand to preserve the airy cornicione, and flash-baked in our 900°F wood-fired hearth.
-          </p>
+          {menu.intro && (
+            <p className="mt-3 text-sm sm:text-base text-[#615448]">
+              {menu.intro}
+            </p>
+          )}
         </div>
 
         {/* Category Selector Tabs */}
@@ -64,9 +69,11 @@ export const MenuSection: React.FC = () => {
                 <h3 className="font-serif text-2xl font-bold text-[#24211e]">
                   {category.title}
                 </h3>
-                <p className="text-xs sm:text-sm text-[#736659] mt-1">
-                  {category.subtitle}
-                </p>
+                {category.subtitle && (
+                  <p className="text-xs sm:text-sm text-[#736659] mt-1">
+                    {category.subtitle}
+                  </p>
+                )}
               </div>
 
               {/* Items Grid */}

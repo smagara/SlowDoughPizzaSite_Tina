@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BLOG_POSTS } from '../data/pizzaShopData';
+import { formatPublishedDate, getPublishedPosts } from '../content';
 import { BlogPost } from '../types';
 import { BookOpen, Calendar, Clock, User, X, CheckCircle, Quote } from 'lucide-react';
 import { DoughHandlingArt, WoodOvenArt } from './MinimalArt';
@@ -11,6 +11,7 @@ interface ArticlesSectionProps {
 
 export const ArticlesSection: React.FC<ArticlesSectionProps> = () => {
   const [activeModalPost, setActiveModalPost] = useState<BlogPost | null>(null);
+  const BLOG_POSTS = getPublishedPosts();
 
   const openPostModal = (post: BlogPost) => {
     setActiveModalPost(post);
@@ -52,12 +53,12 @@ export const ArticlesSection: React.FC<ArticlesSectionProps> = () => {
                 <div className="flex flex-wrap items-center gap-3 text-xs text-[#75685c] pb-4 border-b border-[#eee5d8]">
                   <span className="flex items-center gap-1">
                     <User className="w-3.5 h-3.5 text-[#c85a32]" />
-                    <span>{post.author} ({post.authorRole})</span>
+                    <span>{post.author}{post.authorRole ? ` (${post.authorRole})` : ''}</span>
                   </span>
                   <span>•</span>
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" />
-                    <span>{post.publishedDate}</span>
+                    <span>{formatPublishedDate(post.publishedDate)}</span>
                   </span>
                   <span>•</span>
                   <span className="flex items-center gap-1">
@@ -70,9 +71,11 @@ export const ArticlesSection: React.FC<ArticlesSectionProps> = () => {
                 <h3 className="mt-5 font-serif text-2xl font-bold text-[#24211e] leading-snug">
                   {post.title}
                 </h3>
-                <p className="mt-2 text-sm italic font-serif text-[#78695c]">
-                  "{post.subtitle}"
-                </p>
+                {post.subtitle && (
+                  <p className="mt-2 text-sm italic font-serif text-[#78695c]">
+                    "{post.subtitle}"
+                  </p>
+                )}
 
                 {/* Excerpt */}
                 <p className="mt-4 text-sm sm:text-base text-[#52483e] leading-relaxed">
@@ -141,18 +144,20 @@ export const ArticlesSection: React.FC<ArticlesSectionProps> = () => {
             <div className="overflow-y-auto p-6 sm:p-10 space-y-8 font-sans">
               <div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-[#75685c] mb-3">
-                  <span>By {activeModalPost.author}, {activeModalPost.authorRole}</span>
+                  <span>By {activeModalPost.author}{activeModalPost.authorRole ? `, ${activeModalPost.authorRole}` : ''}</span>
                   <span>•</span>
-                  <span>{activeModalPost.publishedDate}</span>
+                  <span>{formatPublishedDate(activeModalPost.publishedDate)}</span>
                   <span>•</span>
                   <span>{activeModalPost.readTime}</span>
                 </div>
                 <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#24211e] leading-tight">
                   {activeModalPost.title}
                 </h2>
-                <p className="mt-2 text-base font-serif italic text-[#756557]">
-                  {activeModalPost.subtitle}
-                </p>
+                {activeModalPost.subtitle && (
+                  <p className="mt-2 text-base font-serif italic text-[#756557]">
+                    {activeModalPost.subtitle}
+                  </p>
+                )}
               </div>
 
               {/* Minimal Art embedded inside essay */}
