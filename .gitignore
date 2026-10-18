@@ -152,3 +152,5 @@ public/admin/
 
 # Keep the example env file even though .env.* is ignored
 !.env.example
+
+docs/~*.docx
